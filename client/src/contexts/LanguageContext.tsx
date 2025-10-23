@@ -34,6 +34,8 @@ const translations = {
     'countdown-timer.desc': 'عداد تنازلي لأي تاريخ أو وقت',
     
     // Calculators
+    'scientific-calculator.title': 'آلة حاسبة علمية',
+    'scientific-calculator.desc': 'آلة حاسبة علمية متقدمة مع دوال رياضية',
     'age-calculator.title': 'حاسبة العمر',
     'age-calculator.desc': 'احسب عمرك بدقة بالسنوات والشهور والأيام',
     'bmi-calculator.title': 'حاسبة BMI',
@@ -116,6 +118,8 @@ const translations = {
     'countdown-timer.desc': 'Countdown timer for any date or time',
     
     // Calculators
+    'scientific-calculator.title': 'Scientific Calculator',
+    'scientific-calculator.desc': 'Advanced scientific calculator with mathematical functions',
     'age-calculator.title': 'Age Calculator',
     'age-calculator.desc': 'Calculate your age accurately in years, months, and days',
     'bmi-calculator.title': 'BMI Calculator',

@@ -20,23 +20,23 @@ export default function MetaTags({
 }: MetaTagsProps) {
   const { language } = useLanguage();
 
-  const baseUrl = 'https://arabic-calculator-tools.vercel.app';
+  const baseUrl = 'https://bmo-tools.vercel.app';
   const fullUrl = `${baseUrl}${url}`;
   const fullImageUrl = image.startsWith('http') ? image : `${baseUrl}${image}`;
 
   const defaultTitle = language === 'ar' 
-    ? 'أدوات الحاسبة العربية - 10 حاسبات مجانية مع تشفير BMO'
-    : 'Arabic Calculator Tools - 10 Free Calculators with BMO Encryption';
+    ? 'BMO Tools - أدوات BMO المتقدمة'
+    : 'BMO Tools - Advanced Calculation & Utility Tools';
 
   const defaultDescription = language === 'ar'
-    ? 'موقع شامل للأدوات الحسابية العربية: حاسبة العمر، BMI، تحويل الوحدات، مولد كلمات المرور، نظام التشفير BMO المتقدم، وأكثر من 10 أداة مفيدة مجانية.'
-    : 'Comprehensive Arabic calculation tools website: age calculator, BMI, unit converter, password generator, advanced BMO encryption system, and more than 10 useful free tools.';
+    ? 'BMO Tools - مجموعة شاملة من الأدوات الحسابية والتقنية المتقدمة: حاسبة علمية، مؤقت ذكي، ساعة عالمية، تحويل الصور، PDF، QR، اختصار الروابط، وأكثر من 20 أداة مجانية.'
+    : 'BMO Tools - Comprehensive collection of advanced calculation and technical tools: scientific calculator, smart timer, world clock, image converter, PDF tools, QR codes, URL shortener, and more than 20 free tools.';
 
   const finalTitle = title || defaultTitle;
   const finalDescription = description || defaultDescription;
   const finalKeywords = keywords || (language === 'ar' 
-    ? 'حاسبة عربية, أدوات حسابية, تحويل وحدات, حساب العمر, BMI, مولد كلمات مرور, تشفير BMO, حاسبة ضريبة, جذر تربيعي, GPA'
-    : 'arabic calculator, calculation tools, unit converter, age calculator, BMI, password generator, BMO encryption, tax calculator, square root, GPA');
+    ? 'bmo tools, حاسبة علمية, أدوات حسابية, تحويل وحدات, حساب العمر, BMI, مولد كلمات مرور, تشفير BMO, QR code, PDF tools, URL shortener, scientific calculator'
+    : 'bmo tools, scientific calculator, calculation tools, unit converter, age calculator, BMI, password generator, BMO encryption, QR code, PDF tools, URL shortener');
 
   useEffect(() => {
     // Update document title
@@ -72,7 +72,7 @@ export default function MetaTags({
     updateMetaTag('og:url', fullUrl, true);
     updateMetaTag('og:image', fullImageUrl, true);
     updateMetaTag('og:locale', language === 'ar' ? 'ar_AR' : 'en_US', true);
-    updateMetaTag('og:site_name', language === 'ar' ? 'أدوات الحاسبة العربية' : 'Arabic Calculator Tools', true);
+    updateMetaTag('og:site_name', language === 'ar' ? 'BMO Tools' : 'BMO Tools', true);
 
     // Twitter Card tags
     updateMetaTag('twitter:card', 'summary_large_image');

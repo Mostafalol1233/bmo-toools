@@ -54,9 +54,14 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [timerRemaining, setTimerRemaining] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
   
   const [worldTime, setWorldTime] = useState(new Date());
   const [worldClockInterval, setWorldClockInterval] = useState<NodeJS.Timeout | null>(null);
+  const [is24HourFormat, setIs24HourFormat] = useState(true);
+  
+  const [scientificDisplay, setScientificDisplay] = useState("0");
+  const [scientificMemory, setScientificMemory] = useState(0);
   
   const [stopwatchTime, setStopwatchTime] = useState(0);
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
@@ -151,6 +156,50 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     };
     return unitOptions[category] || [];
   };
+
+  useEffect(() => {
+    if (toolId === 'timer') {
+      const saved = localStorage.getItem('bmo_timer_state');
+      if (saved) {
+        try {
+          const { remaining, startTime, running } = JSON.parse(saved);
+          if (running && startTime) {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const newRemaining = Math.max(0, remaining - elapsed);
+            if (newRemaining > 0) {
+              setTimerRemaining(newRemaining);
+              setTimerRunning(true);
+              setTimerStartTime(Date.now() - (remaining - newRemaining) * 1000);
+            } else {
+              localStorage.removeItem('bmo_timer_state');
+            }
+          }
+        } catch (e) {
+          console.error('Failed to restore timer state:', e);
+          localStorage.removeItem('bmo_timer_state');
+        }
+      }
+    }
+    
+    if (toolId === 'world-clock') {
+      const savedFormat = localStorage.getItem('bmo_clock_format');
+      if (savedFormat) {
+        setIs24HourFormat(savedFormat === '24');
+      }
+    }
+  }, [toolId]);
+
+  useEffect(() => {
+    if (timerRunning && timerRemaining > 0) {
+      localStorage.setItem('bmo_timer_state', JSON.stringify({
+        remaining: timerRemaining,
+        startTime: timerStartTime || Date.now(),
+        running: true
+      }));
+    } else if (!timerRunning) {
+      localStorage.removeItem('bmo_timer_state');
+    }
+  }, [timerRunning, timerRemaining, timerStartTime]);
 
   useEffect(() => {
     return () => {
@@ -815,8 +864,95 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     URL.revokeObjectURL(url);
   };
 
+  const handleScientificButton = (value: string) => {
+    if (value === 'C') {
+      setScientificDisplay('0');
+    } else if (value === '=') {
+      try {
+        let expression = scientificDisplay;
+        expression = expression.replace(/×/g, '*').replace(/÷/g, '/');
+        expression = expression.replace(/sin\(/g, 'Math.sin(');
+        expression = expression.replace(/cos\(/g, 'Math.cos(');
+        expression = expression.replace(/tan\(/g, 'Math.tan(');
+        expression = expression.replace(/log\(/g, 'Math.log10(');
+        expression = expression.replace(/ln\(/g, 'Math.log(');
+        expression = expression.replace(/√\(/g, 'Math.sqrt(');
+        expression = expression.replace(/π/g, 'Math.PI');
+        expression = expression.replace(/e(?!\d)/g, 'Math.E');
+        expression = expression.replace(/\^/g, '**');
+        
+        const result = eval(expression);
+        setScientificDisplay(String(result));
+      } catch (e) {
+        setScientificDisplay('خطأ');
+      }
+    } else if (value === '⌫') {
+      setScientificDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+    } else if (value === 'M+') {
+      setScientificMemory(parseFloat(scientificDisplay) || 0);
+    } else if (value === 'MR') {
+      setScientificDisplay(String(scientificMemory));
+    } else if (value === 'MC') {
+      setScientificMemory(0);
+    } else {
+      setScientificDisplay(prev => {
+        if (prev === '0' || prev === 'خطأ') {
+          return value;
+        }
+        return prev + value;
+      });
+    }
+  };
+
   const renderCalculator = () => {
     switch (toolId) {
+      case "scientific-calculator":
+        return (
+          <div className="space-y-4">
+            <div className="bg-gray-900 text-white p-4 rounded-lg mb-4">
+              <div className="text-right text-3xl font-mono overflow-x-auto" data-testid="text-scientific-display">
+                {scientificDisplay}
+              </div>
+              {scientificMemory !== 0 && (
+                <div className="text-right text-sm text-gray-400">M: {scientificMemory}</div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                ['MC', 'MR', 'M+', 'C', '⌫'],
+                ['sin(', 'cos(', 'tan(', '^', '√('],
+                ['7', '8', '9', '÷', 'log('],
+                ['4', '5', '6', '×', 'ln('],
+                ['1', '2', '3', '-', 'π'],
+                ['0', '.', '=', '+', 'e']
+              ].map((row, rowIdx) => (
+                row.map((btn, btnIdx) => (
+                  <Button
+                    key={`${rowIdx}-${btnIdx}`}
+                    onClick={() => handleScientificButton(btn)}
+                    variant={btn === '=' ? 'default' : btn === 'C' || btn === '⌫' ? 'destructive' : 'outline'}
+                    className={`h-14 text-lg font-semibold ${
+                      ['MC', 'MR', 'M+'].includes(btn) ? 'bg-purple-100 hover:bg-purple-200' :
+                      ['sin(', 'cos(', 'tan(', 'log(', 'ln(', '√(', '^', 'π', 'e'].includes(btn) ? 'bg-blue-100 hover:bg-blue-200' :
+                      ''
+                    }`}
+                    data-testid={`button-calc-${btn}`}
+                  >
+                    {btn}
+                  </Button>
+                ))
+              ))}
+            </div>
+            
+            <div className="text-xs text-gray-600 space-y-1 mt-4">
+              <p>• استخدم الأقواس () للعمليات المعقدة</p>
+              <p>• الزوايا بالراديان (π = {Math.PI.toFixed(4)})</p>
+              <p>• M+: حفظ في الذاكرة | MR: استرجاع | MC: مسح الذاكرة</p>
+            </div>
+          </div>
+        );
+      
       case "age-calculator":
         return (
           <div className="space-y-4">
@@ -1779,27 +1915,32 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                     if (timerRunning) {
                       if (timerInterval) clearInterval(timerInterval);
                       setTimerRunning(false);
+                      setTimerStartTime(null);
                     } else {
-                      const totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds;
+                      const totalSeconds = timerRemaining > 0 ? timerRemaining : (timerHours * 3600 + timerMinutes * 60 + timerSeconds);
                       if (totalSeconds === 0) {
                         alert("يرجى إدخال وقت صحيح");
                         return;
                       }
                       
+                      const startTime = Date.now();
                       setTimerRemaining(totalSeconds);
                       setTimerRunning(true);
+                      setTimerStartTime(startTime);
                       
                       const interval = setInterval(() => {
-                        setTimerRemaining((prev) => {
-                          if (prev <= 1) {
-                            clearInterval(interval);
-                            setTimerRunning(false);
-                            playNotificationSound();
-                            return 0;
-                          }
-                          return prev - 1;
-                        });
-                      }, 1000);
+                        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                        const remaining = Math.max(0, totalSeconds - elapsed);
+                        
+                        setTimerRemaining(remaining);
+                        
+                        if (remaining === 0) {
+                          clearInterval(interval);
+                          setTimerRunning(false);
+                          setTimerStartTime(null);
+                          playNotificationSound();
+                        }
+                      }, 100);
                       
                       setTimerInterval(interval);
                     }
@@ -1853,21 +1994,44 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       case "world-clock":
         return (
           <div className="space-y-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold">الساعة العالمية</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const newFormat = !is24HourFormat;
+                  setIs24HourFormat(newFormat);
+                  localStorage.setItem('bmo_clock_format', newFormat ? '24' : '12');
+                }}
+                data-testid="button-toggle-time-format"
+              >
+                {is24HourFormat ? '12 ساعة' : '24 ساعة'}
+              </Button>
+            </div>
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   {[
-                    { city: 'الرياض', offset: 3, flag: '🇸🇦' },
-                    { city: 'دبي', offset: 4, flag: '🇦🇪' },
-                    { city: 'القاهرة', offset: 2, flag: '🇪🇬' },
-                    { city: 'لندن', offset: 0, flag: '🇬🇧' },
-                    { city: 'نيويورك', offset: -5, flag: '🇺🇸' },
-                    { city: 'طوكيو', offset: 9, flag: '🇯🇵' }
+                    { city: 'مكة المكرمة', timezone: 'Asia/Riyadh', flag: '🕋' },
+                    { city: 'الرياض', timezone: 'Asia/Riyadh', flag: '🇸🇦' },
+                    { city: 'دبي', timezone: 'Asia/Dubai', flag: '🇦🇪' },
+                    { city: 'القاهرة', timezone: 'Africa/Cairo', flag: '🇪🇬' },
+                    { city: 'إسطنبول', timezone: 'Europe/Istanbul', flag: '🇹🇷' },
+                    { city: 'لندن', timezone: 'Europe/London', flag: '🇬🇧' },
+                    { city: 'باريس', timezone: 'Europe/Paris', flag: '🇫🇷' },
+                    { city: 'نيويورك', timezone: 'America/New_York', flag: '🇺🇸' },
+                    { city: 'لوس أنجلوس', timezone: 'America/Los_Angeles', flag: '🗽' },
+                    { city: 'طوكيو', timezone: 'Asia/Tokyo', flag: '🇯🇵' },
+                    { city: 'سيدني', timezone: 'Australia/Sydney', flag: '🇦🇺' }
                   ].map((location) => {
-                    const cityTime = new Date(worldTime.getTime() + (location.offset - worldTime.getTimezoneOffset() / 60) * 3600000);
-                    const hours = cityTime.getUTCHours().toString().padStart(2, '0');
-                    const minutes = cityTime.getUTCMinutes().toString().padStart(2, '0');
-                    const seconds = cityTime.getUTCSeconds().toString().padStart(2, '0');
+                    const timeString = worldTime.toLocaleTimeString('en-US', {
+                      timeZone: location.timezone,
+                      hour12: !is24HourFormat,
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    });
                     
                     return (
                       <div 
@@ -1879,11 +2043,11 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                           <span className="text-3xl">{location.flag}</span>
                           <div>
                             <div className="font-semibold text-cyan-800">{location.city}</div>
-                            <div className="text-xs text-cyan-600">GMT{location.offset >= 0 ? '+' : ''}{location.offset}</div>
+                            <div className="text-xs text-cyan-600">{location.timezone}</div>
                           </div>
                         </div>
-                        <div className="text-2xl font-bold text-cyan-700" data-testid={`time-${location.city}`}>
-                          {hours}:{minutes}:{seconds}
+                        <div className="text-2xl font-bold text-cyan-700 font-mono" data-testid={`time-${location.city}`}>
+                          {timeString}
                         </div>
                       </div>
                     );
@@ -2721,6 +2885,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
 
   const getToolTitle = () => {
     const titles = {
+      "scientific-calculator": "الآلة الحاسبة العلمية",
       "age-calculator": "حاسبة العمر",
       "date-converter": "تحويل التاريخ",
       "bmi-calculator": "حاسبة مؤشر كتلة الجسم",
@@ -2740,6 +2905,9 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "stopwatch": "ساعة الإيقاف",
       "image-converter": "محول الصور",
       "image-resizer": "تغيير حجم الصور",
+      "bg-remover": "إزالة الخلفية",
+      "pdf-merger": "دمج ملفات PDF",
+      "pdf-splitter": "تقسيم ملفات PDF",
       "qr-code": "مولد وقارئ رموز QR",
       "pdf-tools": "أدوات PDF",
       "url-shortener": "مختصر الروابط"

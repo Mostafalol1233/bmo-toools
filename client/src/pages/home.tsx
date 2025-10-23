@@ -54,6 +54,14 @@ const tools: Tool[] = [
   
   // Calculators
   {
+    id: "scientific-calculator",
+    titleKey: "scientific-calculator.title",
+    descKey: "scientific-calculator.desc",
+    icon: "fas fa-calculator",
+    color: "indigo",
+    category: "calculators"
+  },
+  {
     id: "age-calculator",
     titleKey: "age-calculator.title",
     descKey: "age-calculator.desc",
