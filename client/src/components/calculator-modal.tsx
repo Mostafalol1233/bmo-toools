@@ -39,6 +39,20 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
   const [gpaCourses, setGpaCourses] = useState<GPACourse[]>([{ grade: 0, hours: 0 }]);
   const [selectedCategory, setSelectedCategory] = useState<string>('length');
+  
+  const [timerHours, setTimerHours] = useState(0);
+  const [timerMinutes, setTimerMinutes] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRemaining, setTimerRemaining] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  const [worldTime, setWorldTime] = useState(new Date());
+  const [worldClockInterval, setWorldClockInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  const [stopwatchTime, setStopwatchTime] = useState(0);
+  const [stopwatchRunning, setStopwatchRunning] = useState(false);
+  const [stopwatchInterval, setStopwatchInterval] = useState<NodeJS.Timeout | null>(null);
 
   const getUnitsForCategory = (category: string) => {
     const unitOptions: { [key: string]: Array<{value: string, label: string}> } = {
@@ -105,8 +119,30 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       if (countdownInterval) {
         clearInterval(countdownInterval);
       }
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+      if (worldClockInterval) {
+        clearInterval(worldClockInterval);
+      }
+      if (stopwatchInterval) {
+        clearInterval(stopwatchInterval);
+      }
     };
-  }, [countdownInterval]);
+  }, [countdownInterval, timerInterval, worldClockInterval, stopwatchInterval]);
+  
+  useEffect(() => {
+    if (toolId === 'world-clock') {
+      const interval = setInterval(() => {
+        setWorldTime(new Date());
+      }, 1000);
+      setWorldClockInterval(interval);
+      
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }
+  }, [toolId]);
 
   const handleAgeCalculation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1097,7 +1133,8 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                   size="sm" 
                   variant="secondary"
                   onClick={() => {
-                    const code = generateDetectorCode();
+                    const randomText = `DTC-${Math.random().toString(36).substring(2, 8)}-${Math.random().toString(36).substring(2, 6)}`;
+                    const code = generateDetectorCode(randomText);
                     setResult({ type: 'detector-code', code, isValid: true });
                   }}
                 >
@@ -1237,6 +1274,225 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           </div>
         );
 
+      case "timer":
+        return (
+          <div className="space-y-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>ساعات</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    max="23"
+                    value={timerHours}
+                    onChange={(e) => setTimerHours(parseInt(e.target.value) || 0)}
+                    disabled={timerRunning}
+                    data-testid="input-timer-hours"
+                  />
+                </div>
+                <div>
+                  <Label>دقائق</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    max="59"
+                    value={timerMinutes}
+                    onChange={(e) => setTimerMinutes(parseInt(e.target.value) || 0)}
+                    disabled={timerRunning}
+                    data-testid="input-timer-minutes"
+                  />
+                </div>
+                <div>
+                  <Label>ثوان</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    max="59"
+                    value={timerSeconds}
+                    onChange={(e) => setTimerSeconds(parseInt(e.target.value) || 0)}
+                    disabled={timerRunning}
+                    data-testid="input-timer-seconds"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-2 space-x-reverse">
+                <Button 
+                  className="flex-1"
+                  onClick={() => {
+                    if (timerRunning) {
+                      if (timerInterval) clearInterval(timerInterval);
+                      setTimerRunning(false);
+                    } else {
+                      const totalSeconds = timerHours * 3600 + timerMinutes * 60 + timerSeconds;
+                      if (totalSeconds === 0) {
+                        alert("يرجى إدخال وقت صحيح");
+                        return;
+                      }
+                      
+                      setTimerRemaining(totalSeconds);
+                      setTimerRunning(true);
+                      
+                      const interval = setInterval(() => {
+                        setTimerRemaining((prev) => {
+                          if (prev <= 1) {
+                            clearInterval(interval);
+                            setTimerRunning(false);
+                            playNotificationSound();
+                            return 0;
+                          }
+                          return prev - 1;
+                        });
+                      }, 1000);
+                      
+                      setTimerInterval(interval);
+                    }
+                  }}
+                  data-testid="button-timer-start-stop"
+                >
+                  {timerRunning ? "إيقاف" : "بدء"}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    if (timerInterval) clearInterval(timerInterval);
+                    setTimerRunning(false);
+                    setTimerRemaining(0);
+                    setTimerHours(0);
+                    setTimerMinutes(0);
+                    setTimerSeconds(0);
+                  }}
+                  data-testid="button-timer-reset"
+                >
+                  إعادة تعيين
+                </Button>
+              </div>
+            </div>
+            {(timerRunning || timerRemaining > 0) && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="text-5xl font-bold text-sky-600 mb-4" data-testid="text-timer-display">
+                      {Math.floor(timerRemaining / 3600).toString().padStart(2, '0')}:
+                      {Math.floor((timerRemaining % 3600) / 60).toString().padStart(2, '0')}:
+                      {(timerRemaining % 60).toString().padStart(2, '0')}
+                    </div>
+                    {timerRemaining === 0 && (
+                      <div className="text-lg text-sky-700 animate-bounce" data-testid="text-timer-finished">
+                        ⏰ انتهى الوقت! ⏰
+                      </div>
+                    )}
+                    {timerRunning && (
+                      <div className="text-sm text-gray-600">
+                        المؤقت جاري...
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+
+      case "world-clock":
+        return (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  {[
+                    { city: 'الرياض', offset: 3, flag: '🇸🇦' },
+                    { city: 'دبي', offset: 4, flag: '🇦🇪' },
+                    { city: 'القاهرة', offset: 2, flag: '🇪🇬' },
+                    { city: 'لندن', offset: 0, flag: '🇬🇧' },
+                    { city: 'نيويورك', offset: -5, flag: '🇺🇸' },
+                    { city: 'طوكيو', offset: 9, flag: '🇯🇵' }
+                  ].map((location) => {
+                    const cityTime = new Date(worldTime.getTime() + (location.offset - worldTime.getTimezoneOffset() / 60) * 3600000);
+                    const hours = cityTime.getUTCHours().toString().padStart(2, '0');
+                    const minutes = cityTime.getUTCMinutes().toString().padStart(2, '0');
+                    const seconds = cityTime.getUTCSeconds().toString().padStart(2, '0');
+                    
+                    return (
+                      <div 
+                        key={location.city} 
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-200"
+                        data-testid={`world-clock-${location.city}`}
+                      >
+                        <div className="flex items-center space-x-3 space-x-reverse">
+                          <span className="text-3xl">{location.flag}</span>
+                          <div>
+                            <div className="font-semibold text-cyan-800">{location.city}</div>
+                            <div className="text-xs text-cyan-600">GMT{location.offset >= 0 ? '+' : ''}{location.offset}</div>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-cyan-700" data-testid={`time-${location.city}`}>
+                          {hours}:{minutes}:{seconds}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "stopwatch":
+        return (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-6xl font-bold text-emerald-600 mb-6 font-mono" data-testid="text-stopwatch-display">
+                    {Math.floor(stopwatchTime / 3600000).toString().padStart(2, '0')}:
+                    {Math.floor((stopwatchTime % 3600000) / 60000).toString().padStart(2, '0')}:
+                    {Math.floor((stopwatchTime % 60000) / 1000).toString().padStart(2, '0')}.
+                    {Math.floor((stopwatchTime % 1000) / 10).toString().padStart(2, '0')}
+                  </div>
+                  <div className="text-sm text-gray-600 mb-4">
+                    HH:MM:SS:ms
+                  </div>
+                  <div className="flex space-x-2 space-x-reverse">
+                    <Button 
+                      className="flex-1"
+                      onClick={() => {
+                        if (stopwatchRunning) {
+                          if (stopwatchInterval) clearInterval(stopwatchInterval);
+                          setStopwatchRunning(false);
+                        } else {
+                          setStopwatchRunning(true);
+                          const startTime = Date.now() - stopwatchTime;
+                          
+                          const interval = setInterval(() => {
+                            setStopwatchTime(Date.now() - startTime);
+                          }, 10);
+                          
+                          setStopwatchInterval(interval);
+                        }
+                      }}
+                      data-testid="button-stopwatch-start-stop"
+                    >
+                      {stopwatchRunning ? "إيقاف" : "بدء"}
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        if (stopwatchInterval) clearInterval(stopwatchInterval);
+                        setStopwatchRunning(false);
+                        setStopwatchTime(0);
+                      }}
+                      data-testid="button-stopwatch-reset"
+                    >
+                      إعادة تعيين
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
       default:
         return <div className="p-6"><p>الأداة غير متوفرة حالياً</p></div>;
     }
@@ -1257,7 +1513,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "unit-converter": "محول الوحدات",
       "password-generator": "مولد كلمات المرور",
       "text-encoder": "مشفر النصوص",
-      "color-palette": "منتقي الألوان"
+      "color-palette": "منتقي الألوان",
+      "timer": "المؤقت",
+      "world-clock": "الساعة العالمية",
+      "stopwatch": "ساعة الإيقاف"
     };
     return titles[toolId as keyof typeof titles] || "أداة حسابية";
   };

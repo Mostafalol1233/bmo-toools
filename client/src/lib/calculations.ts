@@ -1,3 +1,5 @@
+import moment from 'moment-hijri';
+
 export function calculateAge(birthDate: string) {
   const birth = new Date(birthDate);
   const today = new Date();
@@ -21,16 +23,27 @@ export function calculateAge(birthDate: string) {
 }
 
 export function convertDate(date: string, type: string) {
-  const inputDate = new Date(date);
+  const m = moment(date);
   
   if (type === 'gregorian-to-hijri') {
-    const hijriYear = Math.floor((inputDate.getFullYear() - 622) * 1.030684);
+    const hijriDate = m.format('iYYYY/iM/iD');
+    const hijriMonthName = m.format('iMMMM');
+    const hijriYear = m.format('iYYYY');
+    
     return {
-      convertedDate: `التاريخ الهجري التقريبي: ${hijriYear}/${inputDate.getMonth() + 1}/${inputDate.getDate()}`
+      convertedDate: `التاريخ الهجري: ${hijriDate}`,
+      monthName: hijriMonthName,
+      year: hijriYear,
+      fullDate: `${m.format('iD')} ${hijriMonthName} ${hijriYear} هـ`
     };
   } else {
+    // Hijri to Gregorian
+    const hijriMoment = moment(date, 'iYYYY/iM/iD');
+    const gregorianDate = hijriMoment.format('YYYY/M/D');
+    
     return {
-      convertedDate: `التاريخ الميلادي: ${inputDate.toLocaleDateString('ar-SA')}`
+      convertedDate: `التاريخ الميلادي: ${gregorianDate}`,
+      fullDate: hijriMoment.format('D MMMM YYYY') + ' م'
     };
   }
 }
@@ -87,11 +100,15 @@ export function calculateDateDifference(date1: string, date2: string) {
   
   const weeks = Math.floor(daysDifference / 7);
   const remainingDays = daysDifference % 7;
+  const months = Math.floor(daysDifference / 30);
+  const years = Math.floor(daysDifference / 365);
 
   return {
     days: daysDifference,
     weeks,
-    remainingDays
+    remainingDays,
+    months,
+    years
   };
 }
 
@@ -123,30 +140,59 @@ export function calculateGPA(courses: Array<{ grade: number; hours: number }>) {
   let totalHours = 0;
   let validCourses = 0;
 
+  // Convert percentage grade (0-100) to GPA scale (0-5)
+  const convertToGradePoint = (percentage: number): number => {
+    if (percentage >= 95) return 5.0;  // A+
+    if (percentage >= 90) return 4.75; // A
+    if (percentage >= 85) return 4.5;  // B+
+    if (percentage >= 80) return 4.0;  // B
+    if (percentage >= 75) return 3.5;  // C+
+    if (percentage >= 70) return 3.0;  // C
+    if (percentage >= 65) return 2.5;  // D+
+    if (percentage >= 60) return 2.0;  // D
+    return 1.0; // F
+  };
+
   courses.forEach(course => {
-    if (course.grade > 0 && course.hours > 0) {
-      let gpaPoints;
-      if (course.grade >= 90) gpaPoints = 4.0;
-      else if (course.grade >= 80) gpaPoints = 3.0;
-      else if (course.grade >= 70) gpaPoints = 2.0;
-      else if (course.grade >= 60) gpaPoints = 1.0;
-      else gpaPoints = 0.0;
-      
-      totalPoints += gpaPoints * course.hours;
+    if (course.grade >= 0 && course.hours > 0) {
+      const gradePoint = convertToGradePoint(course.grade);
+      totalPoints += gradePoint * course.hours;
       totalHours += course.hours;
       validCourses++;
     }
   });
 
+  if (totalHours === 0) {
+    return {
+      gpa: '0.00',
+      totalHours: 0,
+      validCourses: 0,
+      grade: 'لا يوجد'
+    };
+  }
+
   const gpa = totalPoints / totalHours;
+  let grade = '';
+
+  if (gpa >= 4.75) grade = 'A+';
+  else if (gpa >= 4.25) grade = 'A';
+  else if (gpa >= 3.75) grade = 'B+';
+  else if (gpa >= 3.25) grade = 'B';
+  else if (gpa >= 2.75) grade = 'C+';
+  else if (gpa >= 2.25) grade = 'C';
+  else if (gpa >= 1.75) grade = 'D+';
+  else if (gpa >= 1.25) grade = 'D';
+  else grade = 'F';
 
   return {
     gpa: gpa.toFixed(2),
+    totalHours,
     validCourses,
-    totalHours
+    grade
   };
 }
 
+// Unit Converter
 export function convertUnits(value: number, fromUnit: string, toUnit: string, category: string) {
   const conversions: { [key: string]: { [key: string]: number } } = {
     length: {
@@ -154,8 +200,8 @@ export function convertUnits(value: number, fromUnit: string, toUnit: string, ca
       kilometer: 0.001,
       centimeter: 100,
       millimeter: 1000,
-      inch: 39.3701,
       foot: 3.28084,
+      inch: 39.3701,
       yard: 1.09361,
       mile: 0.000621371,
       nauticalMile: 0.000539957
@@ -176,8 +222,6 @@ export function convertUnits(value: number, fromUnit: string, toUnit: string, ca
       pint: 2.11338,
       cup: 4.22675,
       fluidOunce: 33.814,
-      tablespoon: 67.628,
-      teaspoon: 202.884,
       cubicMeter: 0.001,
       cubicCentimeter: 1000
     },
@@ -185,365 +229,108 @@ export function convertUnits(value: number, fromUnit: string, toUnit: string, ca
       squareMeter: 1,
       squareKilometer: 0.000001,
       squareCentimeter: 10000,
-      squareMillimeter: 1000000,
       squareFoot: 10.7639,
-      squareInch: 1550.0031,
+      squareInch: 1550,
       squareYard: 1.19599,
       acre: 0.000247105,
       hectare: 0.0001
     },
-    numbers: {
-      units: 1,
-      tens: 0.1,
-      hundreds: 0.01,
-      thousands: 0.001,
-      tenThousands: 0.0001,
-      hundredThousands: 0.00001,
-      millions: 0.000001
+    temperature: {
+      celsius: 1,
+      fahrenheit: 1,
+      kelvin: 1
     }
   };
 
   if (category === 'temperature') {
-    let result = value;
     if (fromUnit === 'celsius' && toUnit === 'fahrenheit') {
-      result = (value * 9/5) + 32;
+      return (value * 9/5) + 32;
     } else if (fromUnit === 'celsius' && toUnit === 'kelvin') {
-      result = value + 273.15;
+      return value + 273.15;
     } else if (fromUnit === 'fahrenheit' && toUnit === 'celsius') {
-      result = (value - 32) * 5/9;
+      return (value - 32) * 5/9;
     } else if (fromUnit === 'fahrenheit' && toUnit === 'kelvin') {
-      result = ((value - 32) * 5/9) + 273.15;
+      return ((value - 32) * 5/9) + 273.15;
     } else if (fromUnit === 'kelvin' && toUnit === 'celsius') {
-      result = value - 273.15;
+      return value - 273.15;
     } else if (fromUnit === 'kelvin' && toUnit === 'fahrenheit') {
-      result = ((value - 273.15) * 9/5) + 32;
+      return ((value - 273.15) * 9/5) + 32;
     }
-    
-    return {
-      result: result.toFixed(2),
-      fromValue: value,
-      fromUnit,
-      toUnit
-    };
-  } else {
-    const categoryConversions = conversions[category];
-    if (categoryConversions && categoryConversions[fromUnit] && categoryConversions[toUnit]) {
-      const baseValue = value / categoryConversions[fromUnit];
-      const result = baseValue * categoryConversions[toUnit];
-      return {
-        result: result.toFixed(6),
-        fromValue: value,
-        fromUnit,
-        toUnit
-      };
-    }
+    return value;
   }
 
-  return { error: 'تحويل غير مدعوم' };
+  const categoryConversions = conversions[category];
+  if (!categoryConversions) return value;
+
+  const baseValue = value / categoryConversions[fromUnit];
+  return baseValue * categoryConversions[toUnit];
 }
 
-export function generatePassword(length: number, options: { uppercase: boolean; lowercase: boolean; numbers: boolean; symbols: boolean; useWords: boolean }) {
-  const chars = {
-    uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    lowercase: 'abcdefghijklmnopqrstuvwxyz',
-    numbers: '0123456789',
-    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
-  };
+// Password Generator
+export function generatePassword(length: number, options: {
+  uppercase: boolean;
+  lowercase: boolean;
+  numbers: boolean;
+  symbols: boolean;
+}) {
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
 
-  const commonWords = [
-    'apple', 'cloud', 'house', 'ocean', 'mountain', 'bridge', 'garden', 'forest', 
-    'river', 'sunset', 'flower', 'castle', 'dragon', 'wizard', 'knight', 'tiger',
-    'eagle', 'dolphin', 'thunder', 'rainbow', 'crystal', 'silver', 'golden', 'diamond'
-  ];
+  let chars = '';
+  if (options.uppercase) chars += uppercase;
+  if (options.lowercase) chars += lowercase;
+  if (options.numbers) chars += numbers;
+  if (options.symbols) chars += symbols;
 
-  if (options.useWords && length >= 8) {
-    const word = commonWords[Math.floor(Math.random() * commonWords.length)];
-    const capitalizedWord = word.charAt(0).toUpperCase() + word.slice(1);
-    const numbers = Math.floor(Math.random() * 999) + 1;
-    const symbols = options.symbols ? chars.symbols[Math.floor(Math.random() * chars.symbols.length)] : '';
-    const password = capitalizedWord + numbers + symbols;
-    
-    return {
-      password,
-      strength: calculatePasswordStrength(password, length),
-      strengthText: getStrengthText(calculatePasswordStrength(password, length)),
-      length: password.length,
-      type: 'word-based'
-    };
-  }
-
-  let characterPool = '';
-  if (options.uppercase) characterPool += chars.uppercase;
-  if (options.lowercase) characterPool += chars.lowercase;
-  if (options.numbers) characterPool += chars.numbers;
-  if (options.symbols) characterPool += chars.symbols;
-
-  if (!characterPool) {
-    return { error: 'يجب اختيار نوع واحد على الأقل من الأحرف' };
-  }
+  if (chars === '') chars = lowercase;
 
   let password = '';
   for (let i = 0; i < length; i++) {
-    password += characterPool.charAt(Math.floor(Math.random() * characterPool.length));
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  const strength = calculatePasswordStrength(password, length);
+  let strength = 'ضعيف';
+  let strengthColor = 'text-red-600';
+  if (length >= 12 && options.uppercase && options.lowercase && options.numbers && options.symbols) {
+    strength = 'قوي جداً';
+    strengthColor = 'text-green-600';
+  } else if (length >= 8 && ((options.uppercase && options.lowercase) || (options.numbers && options.symbols))) {
+    strength = 'قوي';
+    strengthColor = 'text-blue-600';
+  } else if (length >= 6) {
+    strength = 'متوسط';
+    strengthColor = 'text-yellow-600';
+  }
 
   return {
     password,
     strength,
-    strengthText: getStrengthText(strength),
-    length: password.length,
-    type: 'random'
+    strengthColor,
+    length
   };
 }
 
-function calculatePasswordStrength(password: string, minLength: number): number {
-  let strength = 0;
-  
-  if (password.length >= 8) strength += 20;
-  if (password.length >= 12) strength += 15;
-  if (password.length >= 16) strength += 10;
-  
-  if (/[A-Z]/.test(password)) strength += 15;
-  if (/[a-z]/.test(password)) strength += 15;
-  if (/[0-9]/.test(password)) strength += 15;
-  if (/[^A-Za-z0-9]/.test(password)) strength += 20;
-  
-  if (/(.)\1{2,}/.test(password)) strength -= 10;
-  if (/123|abc|qwe/i.test(password)) strength -= 15;
-  
-  return Math.min(100, Math.max(0, strength));
-}
-
-function getStrengthText(strength: number): string {
-  if (strength >= 90) return 'ممتازة';
-  if (strength >= 75) return 'قوية جداً';
-  if (strength >= 60) return 'قوية';
-  if (strength >= 40) return 'متوسطة';
-  if (strength >= 25) return 'ضعيفة';
-  return 'ضعيفة جداً';
-}
-
-function generateSalt(length: number): string {
-  const chars = '0123456789abcdef';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
-}
-
-function encodeBMO(text: string): string {
-  const timestamp = Date.now().toString();
-  const salt = generateSalt(8);
-  
-  let stage1 = text.split('').map((char, index) => {
-    const code = char.charCodeAt(0);
-    const noise = (index * 7 + parseInt(salt[index % salt.length], 16)) % 256;
-    return (code + noise).toString(16).padStart(4, '0');
-  }).join('');
-  
-  let stage2 = '';
-  for (let i = 0; i < stage1.length; i++) {
-    const char = stage1[i];
-    const keyIndex = (i + parseInt(timestamp.slice(-3))) % 16;
-    const key = parseInt(timestamp[keyIndex], 10) || 1;
-    const encrypted = (char.charCodeAt(0) ^ key).toString(16);
-    stage2 += encrypted.padStart(2, '0');
-  }
-  
-  const header = `${salt}${timestamp.slice(-6)}`;
-  const body = stage2;
-  
-  let final = header + body;
-  final = final.split('').map((char, i) => {
-    const shift = (i % 5) + 1;
-    return String.fromCharCode(char.charCodeAt(0) + shift);
-  }).join('');
-  
-  final = btoa(final).replace(/\+/g, '_').replace(/\//g, '-').replace(/=/g, '');
-  
-  return `BMO${final}END`;
-}
-
-function decodeBMO(encryptedText: string): string {
-  try {
-    if (!encryptedText.startsWith('BMO') || !encryptedText.endsWith('END')) {
-      return 'خطأ: نص غير مشفر بـ BMO';
-    }
-    
-    let encrypted = encryptedText.slice(3, -3);
-    
-    encrypted = encrypted.replace(/_/g, '+').replace(/-/g, '/');
-    while (encrypted.length % 4) encrypted += '=';
-    encrypted = atob(encrypted);
-    
-    encrypted = encrypted.split('').map((char, i) => {
-      const shift = (i % 5) + 1;
-      return String.fromCharCode(char.charCodeAt(0) - shift);
-    }).join('');
-    
-    const salt = encrypted.slice(0, 8);
-    const timestamp = encrypted.slice(8, 14);
-    const body = encrypted.slice(14);
-    
-    let stage2 = '';
-    for (let i = 0; i < body.length; i += 2) {
-      const encryptedByte = parseInt(body.slice(i, i + 2), 16);
-      const keyIndex = (i / 2 + parseInt(timestamp)) % 16;
-      const key = parseInt(timestamp[keyIndex % timestamp.length], 10) || 1;
-      const decrypted = encryptedByte ^ key;
-      stage2 += String.fromCharCode(decrypted);
-    }
-    
-    let result = '';
-    for (let i = 0; i < stage2.length; i += 4) {
-      const hexCode = stage2.slice(i, i + 4);
-      const code = parseInt(hexCode, 16);
-      const index = i / 4;
-      const noise = (index * 7 + parseInt(salt[index % salt.length], 16)) % 256;
-      const originalChar = code - noise;
-      result += String.fromCharCode(originalChar);
-    }
-    
-    return result;
-  } catch (error) {
-    return 'خطأ في فك تشفير BMO';
-  }
-}
-
-function autoDetectAndDecode(text: string): string {
-  const detectionResults: Array<{method: string, result: string, confidence: number}> = [];
-  
-  if (text.startsWith('BMO') && text.endsWith('END')) {
-    const result = decodeBMO(text);
-    if (!result.startsWith('خطأ')) {
-      detectionResults.push({method: 'BMO', result, confidence: 95});
-    }
-  }
-  
-  try {
-    const base64Result = atob(text);
-    if (base64Result.length > 0 && /^[\x20-\x7E\u0600-\u06FF\s]*$/.test(base64Result)) {
-      detectionResults.push({method: 'Base64', result: base64Result, confidence: 80});
-    }
-  } catch {}
-  
-  for (let shift = 1; shift <= 25; shift++) {
-    const result = text.split('').map(char => {
-      if (char.match(/[a-z]/i)) {
-        const code = char.charCodeAt(0);
-        const base = code >= 65 && code <= 90 ? 65 : 97;
-        return String.fromCharCode(((code - base - shift + 26) % 26) + base);
-      }
-      return char;
-    }).join('');
-    
-    const englishWords = /\b(the|and|or|in|on|at|to|for|of|with|by)\b/i;
-    const arabicWords = /\b(في|من|إلى|على|مع|هذا|هذه|ذلك|تلك)\b/;
-    
-    if (englishWords.test(result) || arabicWords.test(result)) {
-      detectionResults.push({method: `Caesar (${shift})`, result, confidence: 60});
-    }
-  }
-  
-  const atbashResult = text.split('').map(char => {
-    if (char.match(/[a-z]/i)) {
-      const code = char.charCodeAt(0);
-      const isUpper = code >= 65 && code <= 90;
-      const base = isUpper ? 65 : 97;
-      return String.fromCharCode((25 - (code - base)) + base);
-    }
-    return char;
-  }).join('');
-  
-  if (atbashResult !== text) {
-    detectionResults.push({method: 'Atbash', result: atbashResult, confidence: 50});
-  }
-  
-  if (text.includes('-') && /^[\d-]+$/.test(text)) {
-    const lolResult = text.split('-').map(part => {
-      const num = parseInt(part);
-      if (num >= 1 && num <= 26) {
-        return String.fromCharCode(num + 96);
-      }
-      return part;
-    }).join('');
-    
-    if (lolResult !== text) {
-      detectionResults.push({method: 'LOL', result: lolResult, confidence: 70});
-    }
-  }
-  
-  const reverseResult = text.split('').reverse().join('');
-  if (reverseResult !== text) {
-    detectionResults.push({method: 'Reverse', result: reverseResult, confidence: 40});
-  }
-  
-  detectionResults.sort((a, b) => b.confidence - a.confidence);
-  
-  if (detectionResults.length > 0) {
-    const best = detectionResults[0];
-    let output = `🔍 تم اكتشاف التشفير تلقائياً!\n\n`;
-    output += `طريقة التشفير: ${best.method}\n`;
-    output += `مستوى الثقة: ${best.confidence}%\n\n`;
-    output += `النص المفكوك:\n${best.result}\n\n`;
-    
-    if (detectionResults.length > 1) {
-      output += `احتمالات أخرى:\n`;
-      detectionResults.slice(1, 3).forEach(result => {
-        output += `• ${result.method} (${result.confidence}%): ${result.result.slice(0, 50)}${result.result.length > 50 ? '...' : ''}\n`;
-      });
-    }
-    
-    return output;
-  }
-  
-  return 'لم يتم التعرف على نوع التشفير. قد يكون النص غير مشفر أو يستخدم طريقة تشفير غير مدعومة.';
-}
-
+// Text Encoder/Decoder
 export function encodeText(text: string, method: string) {
   switch (method) {
+    case 'base64':
+      return btoa(unescape(encodeURIComponent(text)));
     case 'caesar':
       return text.split('').map(char => {
-        if (char.match(/[a-z]/i)) {
-          const code = char.charCodeAt(0);
-          const base = code >= 65 && code <= 90 ? 65 : 97;
-          return String.fromCharCode(((code - base + 3) % 26) + base);
+        const code = char.charCodeAt(0);
+        if (code >= 65 && code <= 90) {
+          return String.fromCharCode(((code - 65 + 3) % 26) + 65);
+        } else if (code >= 97 && code <= 122) {
+          return String.fromCharCode(((code - 97 + 3) % 26) + 97);
         }
         return char;
       }).join('');
-    
-    case 'lol':
-      return text.split('').map(char => {
-        if (char.match(/[a-z]/i)) {
-          return char.toLowerCase().charCodeAt(0) - 96;
-        }
-        return char;
-      }).join('-');
-    
-    case 'base64':
-      return btoa(text);
-    
     case 'reverse':
       return text.split('').reverse().join('');
-    
-    case 'atbash':
-      return text.split('').map(char => {
-        if (char.match(/[a-z]/i)) {
-          const code = char.charCodeAt(0);
-          const isUpper = code >= 65 && code <= 90;
-          const base = isUpper ? 65 : 97;
-          const newChar = String.fromCharCode((25 - (code - base)) + base);
-          return newChar;
-        }
-        return char;
-      }).join('');
-    
     case 'bmo':
-      return encodeBMO(text);
-    
+      return generateBMOEncryption(text);
     default:
       return text;
   }
@@ -551,78 +338,71 @@ export function encodeText(text: string, method: string) {
 
 export function decodeText(text: string, method: string) {
   switch (method) {
-    case 'caesar':
-      return text.split('').map(char => {
-        if (char.match(/[a-z]/i)) {
-          const code = char.charCodeAt(0);
-          const base = code >= 65 && code <= 90 ? 65 : 97;
-          return String.fromCharCode(((code - base - 3 + 26) % 26) + base);
-        }
-        return char;
-      }).join('');
-    
-    case 'lol':
-      return text.split('-').map(part => {
-        const num = parseInt(part);
-        if (num >= 1 && num <= 26) {
-          return String.fromCharCode(num + 96);
-        }
-        return part;
-      }).join('');
-    
     case 'base64':
       try {
-        return atob(text);
+        return decodeURIComponent(escape(atob(text)));
       } catch {
         return 'خطأ في فك التشفير';
       }
-    
-    case 'reverse':
-      return text.split('').reverse().join('');
-    
-    case 'atbash':
+    case 'caesar':
       return text.split('').map(char => {
-        if (char.match(/[a-z]/i)) {
-          const code = char.charCodeAt(0);
-          const isUpper = code >= 65 && code <= 90;
-          const base = isUpper ? 65 : 97;
-          const newChar = String.fromCharCode((25 - (code - base)) + base);
-          return newChar;
+        const code = char.charCodeAt(0);
+        if (code >= 65 && code <= 90) {
+          return String.fromCharCode(((code - 65 - 3 + 26) % 26) + 65);
+        } else if (code >= 97 && code <= 122) {
+          return String.fromCharCode(((code - 97 - 3 + 26) % 26) + 97);
         }
         return char;
       }).join('');
-    
+    case 'reverse':
+      return text.split('').reverse().join('');
     case 'bmo':
-      return decodeBMO(text);
-    
-    case 'auto':
-      return autoDetectAndDecode(text);
-    
+      return decodeBMOEncryption(text);
     default:
       return text;
   }
 }
 
-export function generateDetectorCode(): string {
-  const timestamp = Date.now();
-  const randomPart = Math.random().toString(36).substring(2, 8);
-  const checksum = (timestamp + randomPart.charCodeAt(0)).toString(16);
-  
-  return `DTC-${randomPart}-${checksum}`;
+// BMO Encryption
+function generateBMOEncryption(text: string): string {
+  const bmoMap: { [key: string]: string } = {
+    'a': '🌙', 'b': '⭐', 'c': '🌟', 'd': '✨', 'e': '💫',
+    'f': '🌠', 'g': '🌌', 'h': '🌈', 'i': '🌸', 'j': '🌺',
+    'k': '🌻', 'l': '🌷', 'm': '🌹', 'n': '🍀', 'o': '🌲',
+    'p': '🌳', 'q': '🍁', 'r': '🍂', 's': '🍃', 't': '🌾',
+    'u': '🌿', 'v': '🍄', 'w': '🌵', 'x': '🌴', 'y': '🌱',
+    'z': '🌰', ' ': '🔷', '0': '0️⃣', '1': '1️⃣', '2': '2️⃣',
+    '3': '3️⃣', '4': '4️⃣', '5': '5️⃣', '6': '6️⃣', '7': '7️⃣',
+    '8': '8️⃣', '9': '9️⃣'
+  };
+
+  return text.toLowerCase().split('').map(char => bmoMap[char] || char).join('');
 }
 
-export function validateDetectorCode(code: string): boolean {
-  if (!code.startsWith('DTC-')) return false;
-  
-  const parts = code.split('-');
-  if (parts.length !== 3) return false;
-  
-  const randomPart = parts[1];
-  const providedChecksum = parts[2];
-  
-  return randomPart.length === 6 && providedChecksum.length >= 2;
+function decodeBMOEncryption(text: string): string {
+  const bmoReverseMap: { [key: string]: string } = {
+    '🌙': 'a', '⭐': 'b', '🌟': 'c', '✨': 'd', '💫': 'e',
+    '🌠': 'f', '🌌': 'g', '🌈': 'h', '🌸': 'i', '🌺': 'j',
+    '🌻': 'k', '🌷': 'l', '🌹': 'm', '🍀': 'n', '🌲': 'o',
+    '🌳': 'p', '🍁': 'q', '🍂': 'r', '🍃': 's', '🌾': 't',
+    '🌿': 'u', '🍄': 'v', '🌵': 'w', '🌴': 'x', '🌱': 'y',
+    '🌰': 'z', '🔷': ' ', '0️⃣': '0', '1️⃣': '1', '2️⃣': '2',
+    '3️⃣': '3', '4️⃣': '4', '5️⃣': '5', '6️⃣': '6', '7️⃣': '7',
+    '8️⃣': '8', '9️⃣': '9'
+  };
+
+  return text.split('').map(char => bmoReverseMap[char] || char).join('');
 }
 
+export function generateDetectorCode(text: string) {
+  return encodeText(text, 'bmo');
+}
+
+export function validateDetectorCode(code: string) {
+  return decodeText(code, 'bmo');
+}
+
+// Color Converter
 export function convertColor(color: string, fromFormat: string, toFormat: string) {
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

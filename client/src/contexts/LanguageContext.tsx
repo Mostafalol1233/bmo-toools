@@ -11,39 +11,79 @@ interface LanguageContextType {
 const translations = {
   ar: {
     // Header
-    'site.title': 'أدوات حسابية يومية',
-    'site.description': 'مجموعة شاملة من الأدوات الحسابية المجانية للاستخدام اليومي',
+    'site.title': 'أدوات الويب المجانية',
+    'site.description': 'مجموعة شاملة من أدوات التحويل والتحرير والتحليل - مجاناً',
     'tools.select': 'اختر الأداة المناسبة لك',
+    'search.placeholder': 'ابحث عن أداة...',
+    'category.all': 'الكل',
+    'category.time': 'الوقت',
+    'category.calculators': 'حاسبات',
+    'category.converters': 'محولات',
+    'category.media': 'الوسائط',
+    'category.pdf': 'PDF',
+    'category.utilities': 'أدوات',
     
-    // Tools
+    // Time Tools
+    'timer.title': 'مؤقت',
+    'timer.desc': 'مؤقت بسيط لتتبع الوقت',
+    'world-clock.title': 'ساعة عالمية',
+    'world-clock.desc': 'اعرض الوقت في مدن مختلفة حول العالم',
+    'stopwatch.title': 'ساعة إيقاف',
+    'stopwatch.desc': 'ساعة إيقاف دقيقة لقياس الوقت',
+    'countdown-timer.title': 'عداد تنازلي',
+    'countdown-timer.desc': 'عداد تنازلي لأي تاريخ أو وقت',
+    
+    // Calculators
     'age-calculator.title': 'حاسبة العمر',
     'age-calculator.desc': 'احسب عمرك بدقة بالسنوات والشهور والأيام',
-    'date-converter.title': 'تحويل التاريخ',
-    'date-converter.desc': 'تحويل بين التاريخ الهجري والميلادي',
     'bmi-calculator.title': 'حاسبة BMI',
     'bmi-calculator.desc': 'احسب مؤشر كتلة الجسم والوزن المثالي',
     'percentage-calculator.title': 'حاسبة النسبة المئوية',
     'percentage-calculator.desc': 'احسب النسب المئوية بطرق مختلفة',
-    'random-generator.title': 'مولد الأرقام العشوائية',
-    'random-generator.desc': 'توليد أرقام عشوائية بين رقمين',
-    'countdown-timer.title': 'عداد تنازلي',
-    'countdown-timer.desc': 'عداد تنازلي لأي تاريخ أو وقت',
-    'date-difference.title': 'الفرق بين التواريخ',
-    'date-difference.desc': 'احسب الفرق بين تاريخين بالأيام',
     'tax-calculator.title': 'حاسبة الضريبة',
     'tax-calculator.desc': 'احسب السعر بعد إضافة الضريبة',
     'sqrt-calculator.title': 'حاسبة الجذر التربيعي',
     'sqrt-calculator.desc': 'احسب الجذر التربيعي لأي رقم',
     'gpa-calculator.title': 'حاسبة المعدل التراكمي',
     'gpa-calculator.desc': 'احسب معدلك التراكمي GPA',
+    'date-difference.title': 'الفرق بين التواريخ',
+    'date-difference.desc': 'احسب الفرق بين تاريخين بالأيام',
+    
+    // Converters
+    'date-converter.title': 'تحويل التاريخ',
+    'date-converter.desc': 'تحويل دقيق بين التاريخ الهجري والميلادي',
     'unit-converter.title': 'محول الوحدات',
     'unit-converter.desc': 'تحويل بين وحدات القياس المختلفة',
+    'color-palette.title': 'منتقي الألوان',
+    'color-palette.desc': 'اختيار الألوان وتحويل بين أنظمة الألوان',
+    
+    // Media Tools
+    'image-converter.title': 'محول الصور',
+    'image-converter.desc': 'تحويل بين JPG، PNG، WebP',
+    'image-resizer.title': 'تغيير حجم الصور',
+    'image-resizer.desc': 'تغيير حجم الصور بسهولة',
+    'bg-remover.title': 'إزالة الخلفية',
+    'bg-remover.desc': 'إزالة خلفية الصور تلقائياً',
+    
+    // PDF Tools
+    'pdf-merger.title': 'دمج PDF',
+    'pdf-merger.desc': 'دمج عدة ملفات PDF في ملف واحد',
+    'pdf-splitter.title': 'تقسيم PDF',
+    'pdf-splitter.desc': 'تقسيم ملف PDF إلى صفحات منفصلة',
+    
+    // Utilities
+    'random-generator.title': 'مولد الأرقام العشوائية',
+    'random-generator.desc': 'توليد أرقام عشوائية بين رقمين',
     'password-generator.title': 'مولد كلمات المرور',
     'password-generator.desc': 'إنشاء كلمات مرور قوية وآمنة',
     'text-encoder.title': 'مشفر النصوص',
     'text-encoder.desc': 'تشفير وفك تشفير النصوص بطرق مختلفة',
-    'color-palette.title': 'منتقي الألوان',
-    'color-palette.desc': 'اختيار الألوان وتحويل بين أنظمة الألوان',
+    'qr-generator.title': 'مولد QR',
+    'qr-generator.desc': 'إنشاء رمز QR من نص أو رابط',
+    'qr-reader.title': 'قارئ QR',
+    'qr-reader.desc': 'قراءة رموز QR من الصور',
+    'url-shortener.title': 'اختصار الروابط',
+    'url-shortener.desc': 'اختصار الروابط الطويلة',
     
     // Sections
     'about.title': 'من نحن',
@@ -55,39 +95,79 @@ const translations = {
   },
   en: {
     // Header
-    'site.title': 'Daily Calculator Tools',
-    'site.description': 'A comprehensive collection of free calculator tools for daily use',
+    'site.title': 'Free Web Tools',
+    'site.description': 'A comprehensive collection of conversion, editing, and analysis tools - Free',
     'tools.select': 'Choose the right tool for you',
+    'search.placeholder': 'Search for a tool...',
+    'category.all': 'All',
+    'category.time': 'Time',
+    'category.calculators': 'Calculators',
+    'category.converters': 'Converters',
+    'category.media': 'Media',
+    'category.pdf': 'PDF',
+    'category.utilities': 'Utilities',
     
-    // Tools
+    // Time Tools
+    'timer.title': 'Timer',
+    'timer.desc': 'Simple timer to track time',
+    'world-clock.title': 'World Clock',
+    'world-clock.desc': 'Display time in different cities around the world',
+    'stopwatch.title': 'Stopwatch',
+    'stopwatch.desc': 'Accurate stopwatch for time measurement',
+    'countdown-timer.title': 'Countdown Timer',
+    'countdown-timer.desc': 'Countdown timer for any date or time',
+    
+    // Calculators
     'age-calculator.title': 'Age Calculator',
     'age-calculator.desc': 'Calculate your age accurately in years, months, and days',
-    'date-converter.title': 'Date Converter',
-    'date-converter.desc': 'Convert between Hijri and Gregorian dates',
     'bmi-calculator.title': 'BMI Calculator',
     'bmi-calculator.desc': 'Calculate body mass index and ideal weight',
     'percentage-calculator.title': 'Percentage Calculator',
     'percentage-calculator.desc': 'Calculate percentages in different ways',
-    'random-generator.title': 'Random Number Generator',
-    'random-generator.desc': 'Generate random numbers between two values',
-    'countdown-timer.title': 'Countdown Timer',
-    'countdown-timer.desc': 'Countdown timer for any date or time',
-    'date-difference.title': 'Date Difference',
-    'date-difference.desc': 'Calculate the difference between two dates in days',
     'tax-calculator.title': 'Tax Calculator',
     'tax-calculator.desc': 'Calculate price after adding tax',
     'sqrt-calculator.title': 'Square Root Calculator',
     'sqrt-calculator.desc': 'Calculate the square root of any number',
     'gpa-calculator.title': 'GPA Calculator',
     'gpa-calculator.desc': 'Calculate your cumulative GPA',
+    'date-difference.title': 'Date Difference',
+    'date-difference.desc': 'Calculate the difference between two dates in days',
+    
+    // Converters
+    'date-converter.title': 'Date Converter',
+    'date-converter.desc': 'Accurate conversion between Hijri and Gregorian dates',
     'unit-converter.title': 'Unit Converter',
     'unit-converter.desc': 'Convert between different units of measurement',
+    'color-palette.title': 'Color Picker',
+    'color-palette.desc': 'Pick colors and convert between color systems',
+    
+    // Media Tools
+    'image-converter.title': 'Image Converter',
+    'image-converter.desc': 'Convert between JPG, PNG, WebP',
+    'image-resizer.title': 'Image Resizer',
+    'image-resizer.desc': 'Resize images easily',
+    'bg-remover.title': 'Background Remover',
+    'bg-remover.desc': 'Remove image background automatically',
+    
+    // PDF Tools
+    'pdf-merger.title': 'PDF Merger',
+    'pdf-merger.desc': 'Merge multiple PDF files into one',
+    'pdf-splitter.title': 'PDF Splitter',
+    'pdf-splitter.desc': 'Split PDF into separate pages',
+    
+    // Utilities
+    'random-generator.title': 'Random Number Generator',
+    'random-generator.desc': 'Generate random numbers between two values',
     'password-generator.title': 'Password Generator',
     'password-generator.desc': 'Generate strong and secure passwords',
     'text-encoder.title': 'Text Encoder',
     'text-encoder.desc': 'Encrypt and decrypt text using various methods',
-    'color-palette.title': 'Color Picker',
-    'color-palette.desc': 'Pick colors and convert between color systems',
+    'qr-generator.title': 'QR Generator',
+    'qr-generator.desc': 'Create QR code from text or link',
+    'qr-reader.title': 'QR Reader',
+    'qr-reader.desc': 'Read QR codes from images',
+    'url-shortener.title': 'URL Shortener',
+    'url-shortener.desc': 'Shorten long URLs',
     
     // Sections
     'about.title': 'About Us',
@@ -112,7 +192,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     language,
     setLanguage: (lang: Language) => {
       setLanguage(lang);
-      // Update document direction
       document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
     },
