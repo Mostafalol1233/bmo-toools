@@ -1,8 +1,8 @@
-# Arabic Calculator Tools Application
+# BMO Tools Application
 
 ## Overview
 
-This is a full-stack web application that provides various Arabic-language calculator tools for daily use. The application features a collection of utility calculators including age calculator, date converter, BMI calculator, percentage calculator, and more. It's built with a modern tech stack using React for the frontend and Express for the backend, with support for both Arabic (RTL) and responsive design.
+This is a full-stack web application (formerly "Arabic Calculator Tools") that provides various web utility tools for daily use. The application features a collection of calculators, converters, and utilities including age calculator, date converter, BMI calculator, scientific calculator, URL shortener, image tools, and more. It's built with a modern tech stack using React for the frontend and Express for the backend, with support for both Arabic (RTL) and English languages.
 
 ## System Architecture
 
@@ -73,9 +73,11 @@ Currently defined schema includes:
 - **Development**: Vite, TypeScript, ESBuild
 
 ### Calculator-Specific Tools
-- **Date Handling**: date-fns for date calculations and formatting
+- **Date Handling**: date-fns, moment-hijri for accurate Hijri date conversions
 - **Form Validation**: Zod for schema validation
 - **UI Enhancements**: Embla Carousel, CMDK for command interfaces
+- **Media Processing**: qrcode (generation), jsqr (reading), pdf-lib (PDF manipulation)
+- **Image Processing**: browser-image-compression for client-side image optimization
 
 ## Deployment Strategy
 
@@ -99,6 +101,55 @@ Currently defined schema includes:
 - **Migrations**: Drizzle Kit handles schema migrations
 
 ## Recent Updates
+
+### October 23, 2025 - BMO Tools Rebranding & Feature Enhancements
+
+**Rebranding:**
+- Complete rebranding from "Arabic Calculator Tools" to "BMO Tools"
+- Updated all meta tags, SEO schemas, and Open Graph tags
+- Changed canonical URLs to bmo-tools.vercel.app/bmo-tools.netlify.app
+- Updated sitemap and robots.txt with new branding
+
+**Timer Enhancements:**
+- Added state persistence using localStorage with drift correction
+- Timer continues from where it left off when modal reopens
+- Uses Date.now()-based time tracking to prevent accuracy issues
+
+**World Clock Improvements:**
+- Expanded from 6 to 11 cities (added Mecca, Istanbul, Paris, Los Angeles, Sydney)
+- Added 12/24 hour format toggle with localStorage persistence
+- Fixed time accuracy using Intl.DateTimeFormat with proper IANA timezones
+- Accurate DST handling for all cities
+
+**Scientific Calculator:**
+- Full scientific calculator implementation
+- Basic operations: +, -, ×, ÷
+- Scientific functions: sin, cos, tan, log, ln, √, ^, π, e
+- Memory functions: M+, MR, MC
+- Expression evaluation with proper math function replacement
+- Note: Uses eval() for calculations (consider mathjs for production)
+
+**URL Shortener Multi-Service Support:**
+- Service selection dropdown with 4 options:
+  - BMO Shortener (internal) - uses existing backend API
+  - is.gd (free external) - server-side proxy to avoid CORS
+  - TinyURL (requires API key) - placeholder
+  - Bit.ly (requires API key) - placeholder
+- Server-side proxy endpoint `/api/urls/isgd` for is.gd integration
+- Service selection persists via localStorage
+- Statistics only shown for BMO internal service
+
+**Background Remover:**
+- Placeholder implementation with clear instructions
+- Explains remove.bg API integration requirement
+- Provides link to remove.bg for API key setup
+- Ready for future API integration
+
+**Technical Improvements:**
+- Added @types/qrcode for TypeScript support
+- Server-side proxy prevents CORS issues with external APIs
+- localStorage persistence for user preferences
+- All new features include Arabic/English translations
 
 ### October 23, 2025 - Major Web Utilities Expansion
 - **New Category System**: Reorganized homepage into clear categories (Time, Convert, Media, Images, Dev, Utilities)
@@ -142,6 +193,7 @@ Currently defined schema includes:
 - **Language Context**: Added React Context for dynamic language switching with RTL/LTR support
 
 ## Changelog
+- October 23, 2025: BMO Tools rebranding, timer persistence, world clock improvements (11 cities, 12/24 toggle), scientific calculator, multi-service URL shortener, background remover placeholder
 - October 23, 2025: Major web utilities expansion with 10+ new tools, category system, security fixes
 - December 16, 2024: Enhanced countdown timer, added 4 new tools, implemented multilingual support
 - June 16, 2025: Initial setup
