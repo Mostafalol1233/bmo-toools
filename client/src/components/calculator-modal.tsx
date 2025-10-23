@@ -5,6 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import imageCompression from "browser-image-compression";
+import QRCode from "qrcode";
+import jsQR from "jsqr";
+import { PDFDocument } from "pdf-lib";
 import { 
   calculateAge, 
   convertDate, 
@@ -53,6 +58,36 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [stopwatchTime, setStopwatchTime] = useState(0);
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
   const [stopwatchInterval, setStopwatchInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  const [originalImage, setOriginalImage] = useState<File | null>(null);
+  const [processedImage, setProcessedImage] = useState<Blob | null>(null);
+  const [originalPreview, setOriginalPreview] = useState<string | null>(null);
+  const [processedPreview, setProcessedPreview] = useState<string | null>(null);
+  const [originalSize, setOriginalSize] = useState(0);
+  const [processedSize, setProcessedSize] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<string>("image/jpeg");
+  const [targetWidth, setTargetWidth] = useState(800);
+  const [targetHeight, setTargetHeight] = useState(600);
+  const [maintainAspectRatio, setMaintainAspectRatio] = useState(true);
+
+  const [qrText, setQrText] = useState("");
+  const [qrSize, setQrSize] = useState("medium");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [qrReaderImage, setQrReaderImage] = useState<File | null>(null);
+  const [qrReaderPreview, setQrReaderPreview] = useState<string | null>(null);
+  const [decodedQrText, setDecodedQrText] = useState<string | null>(null);
+  const [isReadingQr, setIsReadingQr] = useState(false);
+  const [qrReadError, setQrReadError] = useState<string | null>(null);
+
+  const [pdfMergeFiles, setPdfMergeFiles] = useState<File[]>([]);
+  const [pdfSplitFile, setPdfSplitFile] = useState<File | null>(null);
+  const [pdfSplitPageCount, setPdfSplitPageCount] = useState<number>(0);
+  const [pdfSplitStartPage, setPdfSplitStartPage] = useState<number>(1);
+  const [pdfSplitEndPage, setPdfSplitEndPage] = useState<number>(1);
+  const [isPdfProcessing, setIsPdfProcessing] = useState(false);
+  const [mergedPdfBlob, setMergedPdfBlob] = useState<Blob | null>(null);
+  const [splitPdfBlob, setSplitPdfBlob] = useState<Blob | null>(null);
 
   const getUnitsForCategory = (category: string) => {
     const unitOptions: { [key: string]: Array<{value: string, label: string}> } = {
@@ -357,6 +392,424 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     if (gpaCourses.length > 1) {
       setGpaCourses(gpaCourses.filter((_, i) => i !== index));
     }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      alert("يرجى اختيار ملف صورة صحيح");
+      return;
+    }
+    
+    setOriginalImage(file);
+    setOriginalSize(file.size);
+    setProcessedImage(null);
+    setProcessedPreview(null);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setOriginalPreview(event.target?.result as string);
+      
+      const img = new Image();
+      img.onload = () => {
+        setTargetWidth(img.width);
+        setTargetHeight(img.height);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageConvert = async () => {
+    if (!originalImage) {
+      alert("يرجى اختيار صورة أولاً");
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      const options = {
+        maxSizeMB: 10,
+        fileType: selectedFormat,
+        useWebWorker: true
+      };
+      
+      const compressedFile = await imageCompression(originalImage, options);
+      setProcessedImage(compressedFile);
+      setProcessedSize(compressedFile.size);
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setProcessedPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error("Error converting image:", error);
+      alert("حدث خطأ أثناء تحويل الصورة");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleImageResize = async () => {
+    if (!originalImage) {
+      alert("يرجى اختيار صورة أولاً");
+      return;
+    }
+    
+    if (targetWidth <= 0 || targetHeight <= 0) {
+      alert("يرجى إدخال أبعاد صحيحة");
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      const options = {
+        maxSizeMB: 10,
+        maxWidthOrHeight: Math.max(targetWidth, targetHeight),
+        useWebWorker: true
+      };
+      
+      const resizedFile = await imageCompression(originalImage, options);
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        if (maintainAspectRatio) {
+          const aspectRatio = img.width / img.height;
+          if (targetWidth / targetHeight > aspectRatio) {
+            canvas.width = targetHeight * aspectRatio;
+            canvas.height = targetHeight;
+          } else {
+            canvas.width = targetWidth;
+            canvas.height = targetWidth / aspectRatio;
+          }
+        } else {
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+        }
+        
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            setProcessedImage(blob);
+            setProcessedSize(blob.size);
+            setProcessedPreview(canvas.toDataURL());
+          }
+          setIsProcessing(false);
+        }, originalImage.type);
+      };
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(resizedFile);
+    } catch (error) {
+      console.error("Error resizing image:", error);
+      alert("حدث خطأ أثناء تغيير حجم الصورة");
+      setIsProcessing(false);
+    }
+  };
+
+  const downloadImage = () => {
+    if (!processedImage) return;
+    
+    const url = URL.createObjectURL(processedImage);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const extension = selectedFormat.split('/')[1];
+    link.download = `processed-image.${extension}`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleGenerateQr = async () => {
+    if (!qrText.trim()) {
+      alert("يرجى إدخال نص أو رابط");
+      return;
+    }
+
+    try {
+      const sizeMap = {
+        small: 200,
+        medium: 300,
+        large: 400
+      };
+      
+      const width = sizeMap[qrSize as keyof typeof sizeMap];
+      
+      const dataUrl = await QRCode.toDataURL(qrText, {
+        width,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeDataUrl(dataUrl);
+    } catch (error) {
+      console.error("Error generating QR code:", error);
+      alert("حدث خطأ أثناء إنشاء رمز QR");
+    }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrCodeDataUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = qrCodeDataUrl;
+    link.download = `qr-code-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleQrImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      alert("يرجى اختيار ملف صورة صحيح");
+      return;
+    }
+    
+    setQrReaderImage(file);
+    setDecodedQrText(null);
+    setQrReadError(null);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setQrReaderPreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleReadQr = async () => {
+    if (!qrReaderImage) {
+      alert("يرجى اختيار صورة أولاً");
+      return;
+    }
+    
+    setIsReadingQr(true);
+    setQrReadError(null);
+    setDecodedQrText(null);
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          ctx?.drawImage(img, 0, 0);
+          
+          const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+          
+          if (imageData) {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code) {
+              setDecodedQrText(code.data);
+              setQrReadError(null);
+            } else {
+              setQrReadError("لم يتم العثور على رمز QR في الصورة");
+            }
+          }
+          
+          setIsReadingQr(false);
+        };
+        
+        img.onerror = () => {
+          setQrReadError("حدث خطأ أثناء قراءة الصورة");
+          setIsReadingQr(false);
+        };
+        
+        img.src = event.target?.result as string;
+      };
+      
+      reader.readAsDataURL(qrReaderImage);
+    } catch (error) {
+      console.error("Error reading QR code:", error);
+      setQrReadError("حدث خطأ أثناء قراءة رمز QR");
+      setIsReadingQr(false);
+    }
+  };
+
+  const isUrl = (text: string) => {
+    try {
+      new URL(text);
+      return true;
+    } catch {
+      return text.startsWith('http://') || text.startsWith('https://');
+    }
+  };
+
+  const handlePdfMergeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+    
+    if (pdfFiles.length !== files.length) {
+      alert("بعض الملفات ليست PDF. تم تجاهلها.");
+    }
+    
+    setPdfMergeFiles(prev => [...prev, ...pdfFiles]);
+    e.target.value = '';
+  };
+
+  const removePdfFromMergeList = (index: number) => {
+    setPdfMergeFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePdfMerge = async () => {
+    if (pdfMergeFiles.length < 2) {
+      alert("يرجى رفع ملفين PDF على الأقل للدمج");
+      return;
+    }
+    
+    setIsPdfProcessing(true);
+    setMergedPdfBlob(null);
+    
+    try {
+      const mergedPdf = await PDFDocument.create();
+      
+      for (const file of pdfMergeFiles) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(arrayBuffer);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => {
+          mergedPdf.addPage(page);
+        });
+      }
+      
+      const mergedPdfBytes = await mergedPdf.save();
+      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      setMergedPdfBlob(blob);
+    } catch (error) {
+      console.error("Error merging PDFs:", error);
+      alert("حدث خطأ أثناء دمج ملفات PDF");
+    } finally {
+      setIsPdfProcessing(false);
+    }
+  };
+
+  const handleDownloadMergedPdf = () => {
+    if (!mergedPdfBlob) return;
+    
+    const url = URL.createObjectURL(mergedPdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `merged-pdf-${Date.now()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePdfSplitUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+      alert("يرجى اختيار ملف PDF صحيح");
+      return;
+    }
+    
+    setPdfSplitFile(file);
+    setSplitPdfBlob(null);
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await PDFDocument.load(arrayBuffer);
+      const pageCount = pdf.getPageCount();
+      setPdfSplitPageCount(pageCount);
+      setPdfSplitStartPage(1);
+      setPdfSplitEndPage(pageCount);
+    } catch (error) {
+      console.error("Error loading PDF:", error);
+      alert("حدث خطأ أثناء قراءة ملف PDF");
+      setPdfSplitFile(null);
+      setPdfSplitPageCount(0);
+    }
+  };
+
+  const handlePdfSplit = async () => {
+    if (!pdfSplitFile) {
+      alert("يرجى رفع ملف PDF أولاً");
+      return;
+    }
+    
+    if (pdfSplitStartPage < 1 || pdfSplitEndPage > pdfSplitPageCount || pdfSplitStartPage > pdfSplitEndPage) {
+      alert("يرجى إدخال نطاق صفحات صحيح");
+      return;
+    }
+    
+    setIsPdfProcessing(true);
+    setSplitPdfBlob(null);
+    
+    try {
+      const arrayBuffer = await pdfSplitFile.arrayBuffer();
+      const sourcePdf = await PDFDocument.load(arrayBuffer);
+      const newPdf = await PDFDocument.create();
+      
+      const pageIndices = Array.from(
+        { length: pdfSplitEndPage - pdfSplitStartPage + 1 },
+        (_, i) => pdfSplitStartPage - 1 + i
+      );
+      
+      const copiedPages = await newPdf.copyPages(sourcePdf, pageIndices);
+      copiedPages.forEach((page) => {
+        newPdf.addPage(page);
+      });
+      
+      const splitPdfBytes = await newPdf.save();
+      const blob = new Blob([splitPdfBytes], { type: 'application/pdf' });
+      setSplitPdfBlob(blob);
+    } catch (error) {
+      console.error("Error splitting PDF:", error);
+      alert("حدث خطأ أثناء تقسيم ملف PDF");
+    } finally {
+      setIsPdfProcessing(false);
+    }
+  };
+
+  const handleDownloadSplitPdf = () => {
+    if (!splitPdfBlob) return;
+    
+    const url = URL.createObjectURL(splitPdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `split-pdf-pages-${pdfSplitStartPage}-${pdfSplitEndPage}-${Date.now()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const renderCalculator = () => {
@@ -1493,6 +1946,608 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           </div>
         );
 
+      case "image-converter":
+        return (
+          <div className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="image-upload">اختر صورة</Label>
+                <Input
+                  id="image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  data-testid="input-image-upload"
+                />
+              </div>
+
+              {originalPreview && (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h4 className="font-semibold text-gray-700 mb-3">الصورة الأصلية</h4>
+                      <img 
+                        src={originalPreview} 
+                        alt="Original" 
+                        className="w-full rounded-lg mb-2"
+                        data-testid="img-original-preview"
+                      />
+                      <p className="text-sm text-gray-600" data-testid="text-original-size">
+                        الحجم: {formatFileSize(originalSize)}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <div>
+                    <Label htmlFor="format-select">التنسيق المستهدف</Label>
+                    <Select 
+                      value={selectedFormat} 
+                      onValueChange={setSelectedFormat}
+                    >
+                      <SelectTrigger id="format-select" data-testid="select-format">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="image/jpeg">JPG</SelectItem>
+                        <SelectItem value="image/png">PNG</SelectItem>
+                        <SelectItem value="image/webp">WebP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={handleImageConvert} 
+                    className="w-full" 
+                    disabled={isProcessing}
+                    data-testid="button-convert-image"
+                  >
+                    {isProcessing ? "جاري التحويل..." : "تحويل الصورة"}
+                  </Button>
+                </>
+              )}
+
+              {processedPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-green-700 mb-3">الصورة المحولة</h4>
+                    <img 
+                      src={processedPreview} 
+                      alt="Processed" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-processed-preview"
+                    />
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600" data-testid="text-processed-size">
+                        الحجم الجديد: {formatFileSize(processedSize)}
+                      </p>
+                      <p className="text-sm text-green-600" data-testid="text-size-reduction">
+                        التوفير: {formatFileSize(originalSize - processedSize)} 
+                        ({Math.round((1 - processedSize / originalSize) * 100)}%)
+                      </p>
+                      <Button 
+                        onClick={downloadImage} 
+                        className="w-full"
+                        data-testid="button-download-image"
+                      >
+                        تحميل الصورة
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        );
+
+      case "image-resizer":
+        return (
+          <div className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="image-resize-upload">اختر صورة</Label>
+                <Input
+                  id="image-resize-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  data-testid="input-image-resize-upload"
+                />
+              </div>
+
+              {originalPreview && (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h4 className="font-semibold text-gray-700 mb-3">الصورة الأصلية</h4>
+                      <img 
+                        src={originalPreview} 
+                        alt="Original" 
+                        className="w-full rounded-lg mb-2"
+                        data-testid="img-original-resize-preview"
+                      />
+                      <p className="text-sm text-gray-600" data-testid="text-original-resize-size">
+                        الحجم: {formatFileSize(originalSize)}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="target-width">العرض (px)</Label>
+                      <Input
+                        id="target-width"
+                        type="number"
+                        value={targetWidth}
+                        onChange={(e) => setTargetWidth(parseInt(e.target.value) || 0)}
+                        data-testid="input-target-width"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="target-height">الارتفاع (px)</Label>
+                      <Input
+                        id="target-height"
+                        type="number"
+                        value={targetHeight}
+                        onChange={(e) => setTargetHeight(parseInt(e.target.value) || 0)}
+                        data-testid="input-target-height"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <input
+                      type="checkbox"
+                      id="maintain-aspect"
+                      checked={maintainAspectRatio}
+                      onChange={(e) => setMaintainAspectRatio(e.target.checked)}
+                      className="rounded border-gray-300"
+                      data-testid="checkbox-maintain-aspect"
+                    />
+                    <Label htmlFor="maintain-aspect" className="cursor-pointer">
+                      الحفاظ على نسبة العرض إلى الارتفاع
+                    </Label>
+                  </div>
+
+                  <Button 
+                    onClick={handleImageResize} 
+                    className="w-full" 
+                    disabled={isProcessing}
+                    data-testid="button-resize-image"
+                  >
+                    {isProcessing ? "جاري تغيير الحجم..." : "تغيير حجم الصورة"}
+                  </Button>
+                </>
+              )}
+
+              {processedPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-green-700 mb-3">الصورة المعدلة</h4>
+                    <img 
+                      src={processedPreview} 
+                      alt="Resized" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-resized-preview"
+                    />
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600" data-testid="text-resized-size">
+                        الحجم الجديد: {formatFileSize(processedSize)}
+                      </p>
+                      <p className="text-sm text-green-600" data-testid="text-resize-reduction">
+                        التوفير: {formatFileSize(originalSize - processedSize)} 
+                        ({Math.round((1 - processedSize / originalSize) * 100)}%)
+                      </p>
+                      <Button 
+                        onClick={downloadImage} 
+                        className="w-full"
+                        data-testid="button-download-resized"
+                      >
+                        تحميل الصورة
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        );
+
+      case "qr-code":
+        return (
+          <div className="space-y-4">
+            <Tabs defaultValue="generate" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="generate" data-testid="tab-qr-generate">مولد QR</TabsTrigger>
+                <TabsTrigger value="read" data-testid="tab-qr-read">قارئ QR</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="generate" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="qr-text-input">النص أو الرابط</Label>
+                    <Input
+                      id="qr-text-input"
+                      placeholder="أدخل نص أو رابط..."
+                      value={qrText}
+                      onChange={(e) => setQrText(e.target.value)}
+                      data-testid="input-qr-text"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="qr-size-select">حجم رمز QR</Label>
+                    <Select value={qrSize} onValueChange={setQrSize}>
+                      <SelectTrigger id="qr-size-select" data-testid="select-qr-size">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="small">صغير (200x200)</SelectItem>
+                        <SelectItem value="medium">متوسط (300x300)</SelectItem>
+                        <SelectItem value="large">كبير (400x400)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={handleGenerateQr} 
+                    className="w-full"
+                    data-testid="button-generate-qr"
+                  >
+                    إنشاء رمز QR
+                  </Button>
+
+                  {qrCodeDataUrl && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-center space-y-4">
+                          <h4 className="font-semibold text-blue-700 mb-3">رمز QR الناتج</h4>
+                          <div className="flex justify-center">
+                            <img 
+                              src={qrCodeDataUrl} 
+                              alt="QR Code" 
+                              className="border-2 border-gray-200 rounded-lg shadow-lg"
+                              data-testid="img-qr-code"
+                            />
+                          </div>
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-sm text-blue-700 break-all" data-testid="text-qr-content">
+                              <strong>المحتوى:</strong> {qrText}
+                            </p>
+                          </div>
+                          <Button 
+                            onClick={handleDownloadQr} 
+                            variant="outline" 
+                            className="w-full"
+                            data-testid="button-download-qr"
+                          >
+                            <i className="fas fa-download ml-2"></i>
+                            تحميل رمز QR
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="read" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="qr-image-upload">رفع صورة تحتوي على رمز QR</Label>
+                    <Input
+                      id="qr-image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrImageUpload}
+                      data-testid="input-qr-image-upload"
+                    />
+                  </div>
+
+                  {qrReaderPreview && (
+                    <>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <h4 className="font-semibold text-gray-700 mb-3">الصورة المرفوعة</h4>
+                          <img 
+                            src={qrReaderPreview} 
+                            alt="QR to read" 
+                            className="w-full max-w-sm mx-auto rounded-lg border"
+                            data-testid="img-qr-reader-preview"
+                          />
+                        </CardContent>
+                      </Card>
+
+                      <Button 
+                        onClick={handleReadQr} 
+                        className="w-full"
+                        disabled={isReadingQr}
+                        data-testid="button-read-qr"
+                      >
+                        {isReadingQr ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full ml-2"></div>
+                            جاري قراءة رمز QR...
+                          </>
+                        ) : (
+                          "قراءة رمز QR"
+                        )}
+                      </Button>
+                    </>
+                  )}
+
+                  {qrReadError && (
+                    <Card className="border-red-200 bg-red-50">
+                      <CardContent className="pt-6">
+                        <div className="text-center text-red-600" data-testid="text-qr-error">
+                          <i className="fas fa-exclamation-circle text-2xl mb-2"></i>
+                          <p className="font-semibold">{qrReadError}</p>
+                          <p className="text-sm mt-2">تأكد من أن الصورة تحتوي على رمز QR واضح</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {decodedQrText && (
+                    <Card className="border-green-200 bg-green-50">
+                      <CardContent className="pt-6">
+                        <div className="space-y-4">
+                          <div className="text-center">
+                            <i className="fas fa-check-circle text-green-600 text-3xl mb-2"></i>
+                            <h4 className="font-semibold text-green-700 mb-3">تم قراءة رمز QR بنجاح</h4>
+                          </div>
+                          
+                          <div className="bg-white p-4 rounded-lg border">
+                            <Label className="text-sm font-semibold text-green-700">المحتوى المستخرج:</Label>
+                            <p className="mt-2 break-all text-gray-800" data-testid="text-decoded-qr">
+                              {decodedQrText}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => navigator.clipboard.writeText(decodedQrText)}
+                              variant="outline"
+                              className="flex-1"
+                              data-testid="button-copy-decoded"
+                            >
+                              <i className="fas fa-copy ml-2"></i>
+                              نسخ
+                            </Button>
+                            
+                            {isUrl(decodedQrText) && (
+                              <Button 
+                                onClick={() => window.open(decodedQrText, '_blank')}
+                                className="flex-1"
+                                data-testid="button-open-url"
+                              >
+                                <i className="fas fa-external-link-alt ml-2"></i>
+                                فتح الرابط
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        );
+
+      case "pdf-tools":
+        return (
+          <div className="space-y-4">
+            <Tabs defaultValue="merge" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="merge" data-testid="tab-pdf-merge">دمج PDF</TabsTrigger>
+                <TabsTrigger value="split" data-testid="tab-pdf-split">تقسيم PDF</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="merge" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pdf-merge-upload">رفع ملفات PDF للدمج</Label>
+                    <Input
+                      id="pdf-merge-upload"
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      multiple
+                      onChange={handlePdfMergeUpload}
+                      data-testid="input-pdf-merge-upload"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">يمكنك اختيار ملفين أو أكثر</p>
+                  </div>
+
+                  {pdfMergeFiles.length > 0 && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <h4 className="font-semibold text-gray-700 mb-3">الملفات المرفوعة ({pdfMergeFiles.length})</h4>
+                        <div className="space-y-2">
+                          {pdfMergeFiles.map((file, index) => (
+                            <div 
+                              key={index} 
+                              className="flex items-center justify-between bg-blue-50 p-3 rounded-lg"
+                              data-testid={`pdf-merge-file-${index}`}
+                            >
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-800">{file.name}</p>
+                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removePdfFromMergeList(index)}
+                                data-testid={`button-remove-pdf-${index}`}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <i className="fas fa-trash"></i>
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Button
+                    onClick={handlePdfMerge}
+                    className="w-full"
+                    disabled={isPdfProcessing || pdfMergeFiles.length < 2}
+                    data-testid="button-merge-pdf"
+                  >
+                    {isPdfProcessing ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full ml-2"></div>
+                        جاري دمج الملفات...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-compress-arrows-alt ml-2"></i>
+                        دمج ملفات PDF
+                      </>
+                    )}
+                  </Button>
+
+                  {mergedPdfBlob && (
+                    <Card className="border-green-200 bg-green-50">
+                      <CardContent className="pt-6">
+                        <div className="text-center space-y-4">
+                          <i className="fas fa-check-circle text-green-600 text-3xl"></i>
+                          <h4 className="font-semibold text-green-700">تم الدمج بنجاح!</h4>
+                          <p className="text-sm text-green-600" data-testid="text-merged-size">
+                            حجم الملف: {formatFileSize(mergedPdfBlob.size)}
+                          </p>
+                          <Button
+                            onClick={handleDownloadMergedPdf}
+                            className="w-full"
+                            data-testid="button-download-merged"
+                          >
+                            <i className="fas fa-download ml-2"></i>
+                            تحميل ملف PDF المدموج
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="split" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pdf-split-upload">رفع ملف PDF للتقسيم</Label>
+                    <Input
+                      id="pdf-split-upload"
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handlePdfSplitUpload}
+                      data-testid="input-pdf-split-upload"
+                    />
+                  </div>
+
+                  {pdfSplitFile && pdfSplitPageCount > 0 && (
+                    <>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <h4 className="font-semibold text-gray-700 mb-3">معلومات الملف</h4>
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600">
+                              <strong>الاسم:</strong> {pdfSplitFile.name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              <strong>الحجم:</strong> {formatFileSize(pdfSplitFile.size)}
+                            </p>
+                            <p className="text-sm text-blue-600" data-testid="text-page-count">
+                              <strong>عدد الصفحات:</strong> {pdfSplitPageCount} صفحة
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="start-page">من صفحة</Label>
+                          <Input
+                            id="start-page"
+                            type="number"
+                            min={1}
+                            max={pdfSplitPageCount}
+                            value={pdfSplitStartPage}
+                            onChange={(e) => setPdfSplitStartPage(parseInt(e.target.value) || 1)}
+                            data-testid="input-start-page"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="end-page">إلى صفحة</Label>
+                          <Input
+                            id="end-page"
+                            type="number"
+                            min={1}
+                            max={pdfSplitPageCount}
+                            value={pdfSplitEndPage}
+                            onChange={(e) => setPdfSplitEndPage(parseInt(e.target.value) || pdfSplitPageCount)}
+                            data-testid="input-end-page"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <p className="text-sm text-blue-700" data-testid="text-split-range">
+                          <i className="fas fa-info-circle ml-1"></i>
+                          سيتم استخراج {pdfSplitEndPage - pdfSplitStartPage + 1} صفحة 
+                          (من {pdfSplitStartPage} إلى {pdfSplitEndPage})
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={handlePdfSplit}
+                        className="w-full"
+                        disabled={isPdfProcessing}
+                        data-testid="button-split-pdf"
+                      >
+                        {isPdfProcessing ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full ml-2"></div>
+                            جاري تقسيم الملف...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-cut ml-2"></i>
+                            تقسيم PDF
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+
+                  {splitPdfBlob && (
+                    <Card className="border-green-200 bg-green-50">
+                      <CardContent className="pt-6">
+                        <div className="text-center space-y-4">
+                          <i className="fas fa-check-circle text-green-600 text-3xl"></i>
+                          <h4 className="font-semibold text-green-700">تم التقسيم بنجاح!</h4>
+                          <p className="text-sm text-green-600" data-testid="text-split-size">
+                            حجم الملف الجديد: {formatFileSize(splitPdfBlob.size)}
+                          </p>
+                          <Button
+                            onClick={handleDownloadSplitPdf}
+                            className="w-full"
+                            data-testid="button-download-split"
+                          >
+                            <i className="fas fa-download ml-2"></i>
+                            تحميل ملف PDF المقسم
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        );
+
       default:
         return <div className="p-6"><p>الأداة غير متوفرة حالياً</p></div>;
     }
@@ -1516,7 +2571,11 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "color-palette": "منتقي الألوان",
       "timer": "المؤقت",
       "world-clock": "الساعة العالمية",
-      "stopwatch": "ساعة الإيقاف"
+      "stopwatch": "ساعة الإيقاف",
+      "image-converter": "محول الصور",
+      "image-resizer": "تغيير حجم الصور",
+      "qr-code": "مولد وقارئ رموز QR",
+      "pdf-tools": "أدوات PDF"
     };
     return titles[toolId as keyof typeof titles] || "أداة حسابية";
   };

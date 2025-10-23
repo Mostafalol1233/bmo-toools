@@ -206,19 +206,11 @@ const tools: Tool[] = [
     category: "utilities"
   },
   {
-    id: "qr-generator",
-    titleKey: "qr-generator.title",
-    descKey: "qr-generator.desc",
+    id: "qr-code",
+    titleKey: "qr-code.title",
+    descKey: "qr-code.desc",
     icon: "fas fa-qrcode",
     color: "blue",
-    category: "utilities"
-  },
-  {
-    id: "qr-reader",
-    titleKey: "qr-reader.title",
-    descKey: "qr-reader.desc",
-    icon: "fas fa-camera",
-    color: "purple",
     category: "utilities"
   },
   {
