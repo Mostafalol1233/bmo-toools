@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import imageCompression from "browser-image-compression";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
@@ -2548,9 +2551,172 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           </div>
         );
 
+      case "url-shortener":
+        return <URLShortener />;
+
       default:
         return <div className="p-6"><p>الأداة غير متوفرة حالياً</p></div>;
     }
+  };
+
+  const URLShortener = () => {
+    const { toast } = useToast();
+    const [originalUrl, setOriginalUrl] = useState("");
+    const [shortUrl, setShortUrl] = useState<string | null>(null);
+
+    const { data: allUrls, isLoading: isLoadingUrls } = useQuery<any[]>({
+      queryKey: ['/api/urls'],
+      enabled: true,
+    });
+
+    const createShortUrlMutation = useMutation({
+      mutationFn: async (url: string) => {
+        const response = await apiRequest('POST', '/api/urls', { originalUrl: url });
+        return response.json();
+      },
+      onSuccess: (data) => {
+        const baseUrl = window.location.origin;
+        setShortUrl(`${baseUrl}/api/urls/${data.shortCode}`);
+        queryClient.invalidateQueries({ queryKey: ['/api/urls'] });
+        toast({
+          title: "تم إنشاء الرابط المختصر!",
+          description: "يمكنك الآن نسخ الرابط ومشاركته",
+        });
+      },
+      onError: (error: Error) => {
+        toast({
+          title: "حدث خطأ",
+          description: error.message || "فشل في إنشاء الرابط المختصر",
+          variant: "destructive",
+        });
+      },
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      if (!originalUrl.trim()) {
+        toast({
+          title: "خطأ",
+          description: "يرجى إدخال رابط صحيح",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        new URL(originalUrl);
+        createShortUrlMutation.mutate(originalUrl);
+      } catch {
+        toast({
+          title: "خطأ",
+          description: "يرجى إدخال رابط صحيح بصيغة URL",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const copyToClipboard = async () => {
+      if (!shortUrl) return;
+      
+      try {
+        await navigator.clipboard.writeText(shortUrl);
+        toast({
+          title: "تم النسخ!",
+          description: "تم نسخ الرابط إلى الحافظة",
+        });
+      } catch {
+        toast({
+          title: "فشل النسخ",
+          description: "حاول مرة أخرى",
+          variant: "destructive",
+        });
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="original-url">الرابط الأصلي</Label>
+            <Input
+              id="original-url"
+              type="url"
+              placeholder="https://example.com/very/long/url"
+              value={originalUrl}
+              onChange={(e) => setOriginalUrl(e.target.value)}
+              disabled={createShortUrlMutation.isPending}
+              data-testid="input-original-url"
+              className="text-left"
+              dir="ltr"
+            />
+          </div>
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={createShortUrlMutation.isPending}
+            data-testid="button-shorten-url"
+          >
+            {createShortUrlMutation.isPending ? "جاري الاختصار..." : "اختصر الرابط"}
+          </Button>
+        </form>
+
+        {shortUrl && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center">
+                <i className="fas fa-link text-blue-600 text-2xl mb-3"></i>
+                <h4 className="font-semibold text-blue-800 mb-2">الرابط المختصر:</h4>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-blue-200">
+                <p 
+                  className="text-sm text-blue-600 break-all text-left" 
+                  dir="ltr"
+                  data-testid="text-short-url"
+                >
+                  {shortUrl}
+                </p>
+              </div>
+              <Button
+                onClick={copyToClipboard}
+                variant="outline"
+                className="w-full"
+                data-testid="button-copy-url"
+              >
+                <i className="fas fa-copy ml-2"></i>
+                نسخ الرابط
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {allUrls && allUrls.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <h4 className="font-semibold text-gray-800 mb-3">إحصائيات:</h4>
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-gray-600" data-testid="text-total-urls">
+                    {allUrls.length}
+                  </div>
+                  <div className="text-sm text-gray-600">إجمالي الروابط</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-gray-600">
+                    {allUrls.filter(url => {
+                      const createdAt = new Date(url.createdAt);
+                      const today = new Date();
+                      return createdAt.toDateString() === today.toDateString();
+                    }).length}
+                  </div>
+                  <div className="text-sm text-gray-600">روابط اليوم</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
   };
 
   const getToolTitle = () => {
@@ -2575,7 +2741,8 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "image-converter": "محول الصور",
       "image-resizer": "تغيير حجم الصور",
       "qr-code": "مولد وقارئ رموز QR",
-      "pdf-tools": "أدوات PDF"
+      "pdf-tools": "أدوات PDF",
+      "url-shortener": "مختصر الروابط"
     };
     return titles[toolId as keyof typeof titles] || "أداة حسابية";
   };
