@@ -2319,6 +2319,66 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           </div>
         );
 
+      case "bg-remover":
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start space-x-3 space-x-reverse">
+                <i className="fas fa-info-circle text-blue-600 mt-1"></i>
+                <div>
+                  <h4 className="font-semibold text-blue-800 mb-2">حول أداة إزالة الخلفية</h4>
+                  <p className="text-sm text-blue-700 mb-2">
+                    تتطلب هذه الأداة التكامل مع خدمة remove.bg API لإزالة الخلفيات بشكل احترافي.
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    لتفعيل هذه الميزة، يرجى الحصول على مفتاح API من 
+                    <a href="https://remove.bg" target="_blank" rel="noopener noreferrer" className="underline mx-1">
+                      remove.bg
+                    </a>
+                    وإضافته إلى إعدادات التطبيق.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="bg-remove-upload">اختر صورة</Label>
+                <Input
+                  id="bg-remove-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  data-testid="input-bg-remove-upload"
+                />
+              </div>
+
+              {originalPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-gray-700 mb-3">الصورة الأصلية</h4>
+                    <img 
+                      src={originalPreview} 
+                      alt="Original" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-bg-original-preview"
+                    />
+                    <p className="text-sm text-gray-600" data-testid="text-bg-original-size">
+                      الحجم: {formatFileSize(originalSize)}
+                    </p>
+                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <p className="text-sm text-yellow-700">
+                        <i className="fas fa-key ml-2"></i>
+                        يتطلب مفتاح API من remove.bg للمتابعة
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        );
+
       case "qr-code":
         return (
           <div className="space-y-4">
@@ -2727,10 +2787,18 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     const { toast } = useToast();
     const [originalUrl, setOriginalUrl] = useState("");
     const [shortUrl, setShortUrl] = useState<string | null>(null);
+    const [selectedService, setSelectedService] = useState<string>(() => {
+      return localStorage.getItem('urlShortenerService') || 'bmo';
+    });
+    const [isShortening, setIsShortening] = useState(false);
+
+    useEffect(() => {
+      localStorage.setItem('urlShortenerService', selectedService);
+    }, [selectedService]);
 
     const { data: allUrls, isLoading: isLoadingUrls } = useQuery<any[]>({
       queryKey: ['/api/urls'],
-      enabled: true,
+      enabled: selectedService === "bmo",
     });
 
     const createShortUrlMutation = useMutation({
@@ -2756,7 +2824,30 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       },
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const shortenWithIsGd = async (url: string) => {
+      try {
+        const response = await apiRequest('POST', '/api/urls/isgd', { originalUrl: url });
+        const data = await response.json();
+        
+        if (data.shorturl) {
+          setShortUrl(data.shorturl);
+          toast({
+            title: "تم إنشاء الرابط المختصر!",
+            description: "يمكنك الآن نسخ الرابط ومشاركته",
+          });
+        } else {
+          throw new Error(data.error || "فشل في اختصار الرابط");
+        }
+      } catch (error: any) {
+        toast({
+          title: "حدث خطأ",
+          description: error.message || "فشل في الاتصال بخدمة is.gd",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       
       if (!originalUrl.trim()) {
@@ -2770,13 +2861,27 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
 
       try {
         new URL(originalUrl);
-        createShortUrlMutation.mutate(originalUrl);
+        
+        if (selectedService === "bmo") {
+          createShortUrlMutation.mutate(originalUrl);
+        } else if (selectedService === "isgd") {
+          setIsShortening(true);
+          await shortenWithIsGd(originalUrl);
+          setIsShortening(false);
+        } else if (selectedService === "tinyurl" || selectedService === "bitly") {
+          toast({
+            title: "الخدمة غير متاحة",
+            description: "هذه الخدمة تتطلب مفتاح API",
+            variant: "destructive",
+          });
+        }
       } catch {
         toast({
           title: "خطأ",
           description: "يرجى إدخال رابط صحيح بصيغة URL",
           variant: "destructive",
         });
+        setIsShortening(false);
       }
     };
 
@@ -2798,9 +2903,26 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       }
     };
 
+    const isPending = createShortUrlMutation.isPending || isShortening;
+
     return (
       <div className="space-y-6">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="service-select">خدمة الاختصار</Label>
+            <select
+              id="service-select"
+              value={selectedService}
+              onChange={(e) => setSelectedService(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              data-testid="select-service"
+            >
+              <option value="bmo">BMO Shortener (داخلي)</option>
+              <option value="isgd">is.gd (مجاني)</option>
+              <option value="tinyurl">TinyURL (يتطلب API)</option>
+              <option value="bitly">Bit.ly (يتطلب API)</option>
+            </select>
+          </div>
           <div>
             <Label htmlFor="original-url">الرابط الأصلي</Label>
             <Input
@@ -2809,7 +2931,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
               placeholder="https://example.com/very/long/url"
               value={originalUrl}
               onChange={(e) => setOriginalUrl(e.target.value)}
-              disabled={createShortUrlMutation.isPending}
+              disabled={isPending}
               data-testid="input-original-url"
               className="text-left"
               dir="ltr"
@@ -2818,10 +2940,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           <Button 
             type="submit" 
             className="w-full"
-            disabled={createShortUrlMutation.isPending}
+            disabled={isPending}
             data-testid="button-shorten-url"
           >
-            {createShortUrlMutation.isPending ? "جاري الاختصار..." : "اختصر الرابط"}
+            {isPending ? "جاري الاختصار..." : "اختصر الرابط"}
           </Button>
         </form>
 
@@ -2854,7 +2976,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           </Card>
         )}
 
-        {allUrls && allUrls.length > 0 && (
+        {selectedService === "bmo" && allUrls && allUrls.length > 0 && (
           <Card>
             <CardContent className="pt-6">
               <h4 className="font-semibold text-gray-800 mb-3">إحصائيات:</h4>

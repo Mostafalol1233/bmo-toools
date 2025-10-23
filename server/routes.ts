@@ -79,6 +79,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/urls/isgd', async (req, res) => {
+    try {
+      const { originalUrl } = req.body;
+      
+      if (!originalUrl || typeof originalUrl !== 'string') {
+        return res.status(400).json({ error: "Invalid URL" });
+      }
+
+      const isGdUrl = `https://is.gd/create.php?format=json&url=${encodeURIComponent(originalUrl)}`;
+      const response = await fetch(isGdUrl);
+      const data = await response.json();
+      
+      if (data.shorturl) {
+        return res.json({ shorturl: data.shorturl });
+      } else {
+        return res.status(400).json({ error: data.errormessage || "Failed to shorten URL" });
+      }
+    } catch (error) {
+      console.error("Error calling is.gd API:", error);
+      return res.status(500).json({ error: "Failed to contact is.gd service" });
+    }
+  });
+
   // SEO Routes
   app.get('/api/robots', (req, res) => {
     const robotsTxt = `User-agent: *
