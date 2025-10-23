@@ -100,26 +100,51 @@ Currently defined schema includes:
 
 ## Recent Updates
 
+### October 23, 2025 - Major Web Utilities Expansion
+- **New Category System**: Reorganized homepage into clear categories (Time, Convert, Media, Images, Dev, Utilities)
+- **Advanced Search & Filter**: Added search bar with real-time filtering across all tools
+- **New Time Tools**:
+  - Timer with hour/minute/second inputs and notification sound
+  - World Clock showing real-time in 6 major cities
+  - Stopwatch with millisecond precision
+- **New Image Tools**:
+  - Image Converter: Convert between JPG/PNG/WebP formats with file size optimization
+  - Image Resizer: Resize images with aspect ratio preservation
+- **New Media Tools**:
+  - QR Code Generator & Reader: Create and scan QR codes with multiple sizes
+  - PDF Tools: Merge and split PDF files client-side using pdf-lib
+- **New Developer Tools**:
+  - URL Shortener: Complete backend implementation with storage, collision handling, and security validation
+- **Accuracy Improvements**:
+  - Hijri/Gregorian date conversion now uses moment-hijri library for Umm al-Qura accuracy
+  - GPA calculator fixed to properly convert 0-100 grades to 0-5 grade point scale
+- **Security Enhancements**:
+  - URL Shortener validates and whitelists only HTTP/HTTPS protocols
+  - Zod schema validation for all URL inputs
+  - Collision-resistant short code generation with retry mechanism
+
+### Technical Architecture Updates
+- **Libraries Added**: moment-hijri, qrcode, jsqr, pdf-lib, browser-image-compression
+- **Backend Enhancements**: URL shortener with in-memory storage, secure API routes
+- **Client-Side Processing**: All image/PDF/QR operations run entirely in browser
+- **Type Safety**: Complete TypeScript integration with Zod validation schemas
+- **State Management**: TanStack Query for URL shortener statistics and mutations
+
 ### December 16, 2024 - Major Feature Enhancement
 - **Enhanced Countdown Timer**: Added beautiful clock design with visual countdown display and pleasant bell sound notification when timer completes
 - **New Calculator Tools Added**:
   - Unit Converter (length, weight, temperature)
   - Password Generator with strength indicator and security options
-  - QR Code Generator for text and links
   - Color Picker with hex/RGB conversion
 - **Multilingual Support**: Complete Arabic/English language toggle with comprehensive translations
 - **Improved UI/UX**: Enhanced visual design with better animations, gradients, and responsive layouts
 - **Sound Notifications**: Web Audio API implementation for countdown timer completion alerts
-
-### Technical Architecture Updates
 - **Language Context**: Added React Context for dynamic language switching with RTL/LTR support
-- **Enhanced Calculations**: Extended calculation library with unit conversions, password generation, and color utilities
-- **Improved Accessibility**: Added proper ARIA labels and semantic HTML structure
-- **Responsive Design**: Optimized for mobile and desktop with modern CSS grid layouts
 
 ## Changelog
-- June 16, 2025. Initial setup
-- December 16, 2024. Enhanced countdown timer, added 4 new tools, implemented multilingual support
+- October 23, 2025: Major web utilities expansion with 10+ new tools, category system, security fixes
+- December 16, 2024: Enhanced countdown timer, added 4 new tools, implemented multilingual support
+- June 16, 2025: Initial setup
 
 ## User Preferences
 
