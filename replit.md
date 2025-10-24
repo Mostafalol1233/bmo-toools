@@ -102,6 +102,42 @@ Currently defined schema includes:
 
 ## Recent Updates
 
+### October 24, 2025 - BMO Tools Branding & AI-Powered Image Tools
+
+**Site Branding Update:**
+- Changed site title from "Free Web Tools" to "BMO Tools" across all pages
+- Updated translations for both Arabic and English interfaces
+
+**Background Removal Tool (Fully Functional):**
+- Integrated with remove.bg API using BACKGROUND_REMOVAL_API_KEY secret
+- Upload image, automatically remove background with AI
+- Download processed image with transparent background
+- Server-side API proxy prevents CORS issues
+- Enhanced error handling with detailed API error messages
+
+**Designfy Image Enhancement Tool:**
+- Integrated with Designfy API using DESIGNFY_API_KEY secret
+- Multiple AI-powered actions: enhance, upscale, recolor, remove-object
+- Upload local images (converted to base64 for API)
+- Professional image editing capabilities
+- Action selector dropdown with visual feedback
+
+**AI Image Generator (Free, No API Key Required):**
+- Uses Pollinations AI for free image generation
+- Text-to-image generation from natural language prompts
+- 5 example prompts in Arabic for user guidance
+- No API key needed - uses free web service
+- Instant download of generated images
+- Server-side proxy fetches and converts images to base64
+
+**Technical Implementation:**
+- All three tools use server-side API routes in `/api/` endpoints
+- Background removal and Designfy use environment secrets (already configured)
+- AI generator uses free Pollinations API (https://image.pollinations.ai)
+- Proper error handling and user feedback with toast notifications
+- Loading states during API processing
+- All tools include comprehensive data-testid attributes for testing
+
 ### October 24, 2025 - Advanced Tools & Feature Enhancements
 
 **Random Number Generator Enhancements:**
@@ -238,6 +274,7 @@ Currently defined schema includes:
 - **Language Context**: Added React Context for dynamic language switching with RTL/LTR support
 
 ## Changelog
+- October 24, 2025: BMO Tools rebranding, Background Removal (remove.bg API), Designfy image enhancement, AI Image Generator (Pollinations AI)
 - October 24, 2025: Enhanced random number generator with advanced options, TinyURL integration, malicious link checker, image cropper, image combiner
 - October 23, 2025: BMO Tools rebranding, timer persistence, world clock improvements (11 cities, 12/24 toggle), scientific calculator, multi-service URL shortener, background remover placeholder
 - October 23, 2025: Major web utilities expansion with 10+ new tools, category system, security fixes
