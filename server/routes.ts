@@ -102,6 +102,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/urls/tinyurl', async (req, res) => {
+    try {
+      const { originalUrl } = req.body;
+      
+      if (!originalUrl || typeof originalUrl !== 'string') {
+        return res.status(400).json({ error: "Invalid URL" });
+      }
+
+      const tinyUrlEndpoint = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(originalUrl)}`;
+      const response = await fetch(tinyUrlEndpoint);
+      const shortUrl = await response.text();
+      
+      if (shortUrl && shortUrl.startsWith('http')) {
+        return res.json({ shorturl: shortUrl.trim() });
+      } else {
+        return res.status(400).json({ error: "Failed to shorten URL" });
+      }
+    } catch (error) {
+      console.error("Error calling TinyURL API:", error);
+      return res.status(500).json({ error: "Failed to contact TinyURL service" });
+    }
+  });
+
+  app.post('/api/urls/expand', async (req, res) => {
+    try {
+      const { shortUrl } = req.body;
+      
+      if (!shortUrl || typeof shortUrl !== 'string') {
+        return res.status(400).json({ error: "Invalid URL" });
+      }
+
+      const response = await fetch(shortUrl, {
+        method: 'HEAD',
+        redirect: 'manual',
+      });
+
+      let expandedUrl = shortUrl;
+      let redirectCount = 0;
+      const maxRedirects = 10;
+      let currentUrl = shortUrl;
+
+      while (redirectCount < maxRedirects) {
+        const headResponse = await fetch(currentUrl, {
+          method: 'HEAD',
+          redirect: 'manual',
+        });
+
+        if (headResponse.status >= 300 && headResponse.status < 400) {
+          const location = headResponse.headers.get('location');
+          if (location) {
+            currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
+            expandedUrl = currentUrl;
+            redirectCount++;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+
+      return res.json({ 
+        originalUrl: shortUrl,
+        expandedUrl,
+        redirectCount
+      });
+    } catch (error) {
+      console.error("Error expanding URL:", error);
+      return res.status(500).json({ error: "Failed to expand URL" });
+    }
+  });
+
+  app.post('/api/urls/check-malicious', async (req, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ error: "Invalid URL" });
+      }
+
+      const urlhausApiUrl = 'https://urlhaus-api.abuse.ch/v1/url/';
+      const response = await fetch(urlhausApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `url=${encodeURIComponent(url)}`
+      });
+
+      const data = await response.json();
+      
+      let result = {
+        url,
+        isSafe: true,
+        status: 'safe',
+        threat: null as string | null,
+        details: null as string | null,
+        lastSeen: null as string | null,
+        tags: [] as string[]
+      };
+
+      if (data.query_status === 'ok') {
+        result.isSafe = false;
+        result.status = 'malicious';
+        result.threat = data.threat || 'Unknown threat';
+        result.details = data.url_status || 'URL found in malware database';
+        result.lastSeen = data.date_added || null;
+        result.tags = data.tags || [];
+      } else if (data.query_status === 'no_results') {
+        result.isSafe = true;
+        result.status = 'safe';
+        result.details = 'URL not found in malware databases';
+      } else {
+        result.status = 'unknown';
+        result.details = 'Unable to determine URL safety';
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error checking malicious URL:", error);
+      return res.status(500).json({ 
+        error: "Failed to check URL",
+        url: req.body.url,
+        isSafe: null,
+        status: 'error',
+        details: 'Service temporarily unavailable'
+      });
+    }
+  });
+
   // SEO Routes
   app.get('/api/robots', (req, res) => {
     const robotsTxt = `User-agent: *

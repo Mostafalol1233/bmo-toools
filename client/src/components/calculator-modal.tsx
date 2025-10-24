@@ -295,13 +295,21 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     const formData = new FormData(e.target as HTMLFormElement);
     const min = parseInt(formData.get("min") as string);
     const max = parseInt(formData.get("max") as string);
+    const count = parseInt(formData.get("count") as string) || 1;
+    const allowDuplicates = formData.get("allowDuplicates") === "on";
+    const combine = formData.get("combine") === "on";
     
     if (isNaN(min) || isNaN(max) || min >= max) {
       alert("يرجى إدخال حد أدنى وأعلى صحيحين");
       return;
     }
 
-    const randomResult = generateRandomNumber(min, max);
+    if (count < 1 || count > 100) {
+      alert("يرجى إدخال عدد بين 1 و 100");
+      return;
+    }
+
+    const randomResult = generateRandomNumber(min, max, count, allowDuplicates, combine);
     setResult(randomResult);
   };
 
@@ -1088,19 +1096,98 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
             <form onSubmit={handleRandomGeneration} className="space-y-4">
               <div>
                 <Label>الرقم الأدنى</Label>
-                <Input type="number" name="min" placeholder="1" required />
+                <Input 
+                  type="number" 
+                  name="min" 
+                  placeholder="1" 
+                  required 
+                  data-testid="input-random-min"
+                />
               </div>
               <div>
                 <Label>الرقم الأعلى</Label>
-                <Input type="number" name="max" placeholder="100" required />
+                <Input 
+                  type="number" 
+                  name="max" 
+                  placeholder="100" 
+                  required 
+                  data-testid="input-random-max"
+                />
               </div>
-              <Button type="submit" className="w-full">توليد رقم عشوائي</Button>
+              <div>
+                <Label>عدد الأرقام المراد توليدها</Label>
+                <Input 
+                  type="number" 
+                  name="count" 
+                  placeholder="1" 
+                  min="1" 
+                  max="100"
+                  defaultValue="1"
+                  data-testid="input-random-count"
+                />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input 
+                    type="checkbox" 
+                    name="allowDuplicates" 
+                    id="allowDuplicates" 
+                    defaultChecked
+                    className="rounded border-gray-300"
+                    data-testid="checkbox-allow-duplicates"
+                  />
+                  <Label htmlFor="allowDuplicates" className="cursor-pointer">
+                    السماح بتكرار الأرقام
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input 
+                    type="checkbox" 
+                    name="combine" 
+                    id="combine"
+                    className="rounded border-gray-300"
+                    data-testid="checkbox-combine"
+                  />
+                  <Label htmlFor="combine" className="cursor-pointer">
+                    دمج الأرقام معاً (مثال: 2، 6 → 26)
+                  </Label>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" data-testid="button-generate-random">
+                توليد أرقام عشوائية
+              </Button>
             </form>
             {result && (
               <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-4xl font-bold text-red-600 mb-2">{result.number}</div>
-                  <p className="text-red-700">رقم عشوائي بين {result.min} و {result.max}</p>
+                <CardContent className="pt-6">
+                  {result.isCombined ? (
+                    <div className="text-center space-y-3">
+                      <div className="text-4xl font-bold text-red-600 mb-2" data-testid="text-combined-number">
+                        {result.combined}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        الأرقام الأصلية: {result.numbers.join(', ')}
+                      </p>
+                      <p className="text-red-700">
+                        رقم مدمج من {result.count} أرقام بين {result.min} و {result.max}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-3">
+                      <div className="text-4xl font-bold text-red-600 mb-2" data-testid="text-random-numbers">
+                        {result.numbers.join(', ')}
+                      </div>
+                      <p className="text-red-700">
+                        {result.count === 1 ? 'رقم عشوائي' : `${result.count} أرقام عشوائية`} بين {result.min} و {result.max}
+                      </p>
+                      {!result.allowDuplicates && (
+                        <p className="text-sm text-blue-600">
+                          <i className="fas fa-info-circle ml-1"></i>
+                          بدون تكرار
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -2778,6 +2865,15 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       case "url-shortener":
         return <URLShortener />;
 
+      case "link-checker":
+        return <LinkChecker />;
+
+      case "image-cropper":
+        return <ImageCropper />;
+
+      case "image-combiner":
+        return <ImageCombiner />;
+
       default:
         return <div className="p-6"><p>الأداة غير متوفرة حالياً</p></div>;
     }
@@ -2847,6 +2943,29 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       }
     };
 
+    const shortenWithTinyUrl = async (url: string) => {
+      try {
+        const response = await apiRequest('POST', '/api/urls/tinyurl', { originalUrl: url });
+        const data = await response.json();
+        
+        if (data.shorturl) {
+          setShortUrl(data.shorturl);
+          toast({
+            title: "تم إنشاء الرابط المختصر!",
+            description: "يمكنك الآن نسخ الرابط ومشاركته",
+          });
+        } else {
+          throw new Error(data.error || "فشل في اختصار الرابط");
+        }
+      } catch (error: any) {
+        toast({
+          title: "حدث خطأ",
+          description: error.message || "فشل في الاتصال بخدمة TinyURL",
+          variant: "destructive",
+        });
+      }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       
@@ -2868,10 +2987,14 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
           setIsShortening(true);
           await shortenWithIsGd(originalUrl);
           setIsShortening(false);
-        } else if (selectedService === "tinyurl" || selectedService === "bitly") {
+        } else if (selectedService === "tinyurl") {
+          setIsShortening(true);
+          await shortenWithTinyUrl(originalUrl);
+          setIsShortening(false);
+        } else if (selectedService === "bitly") {
           toast({
             title: "الخدمة غير متاحة",
-            description: "هذه الخدمة تتطلب مفتاح API",
+            description: "Bitly يتطلب مفتاح API - استخدم TinyURL أو is.gd بدلاً منه",
             variant: "destructive",
           });
         }
@@ -2919,7 +3042,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
             >
               <option value="bmo">BMO Shortener (داخلي)</option>
               <option value="isgd">is.gd (مجاني)</option>
-              <option value="tinyurl">TinyURL (يتطلب API)</option>
+              <option value="tinyurl">TinyURL (مجاني)</option>
               <option value="bitly">Bit.ly (يتطلب API)</option>
             </select>
           </div>
@@ -3005,6 +3128,507 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     );
   };
 
+  const LinkChecker = () => {
+    const { toast } = useToast();
+    const [urlToCheck, setUrlToCheck] = useState("");
+    const [checkResult, setCheckResult] = useState<any>(null);
+    const [isChecking, setIsChecking] = useState(false);
+
+    const handleCheck = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      if (!urlToCheck.trim()) {
+        toast({
+          title: "خطأ",
+          description: "يرجى إدخال رابط للفحص",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsChecking(true);
+      setCheckResult(null);
+
+      try {
+        const response = await apiRequest('POST', '/api/urls/check-malicious', { url: urlToCheck });
+        const data = await response.json();
+        setCheckResult(data);
+      } catch (error: any) {
+        toast({
+          title: "حدث خطأ",
+          description: error.message || "فشل في فحص الرابط",
+          variant: "destructive",
+        });
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start space-x-3 space-x-reverse">
+            <i className="fas fa-shield-alt text-yellow-600 mt-1"></i>
+            <div>
+              <h4 className="font-semibold text-yellow-800 mb-2">فاحص الروابط الخبيثة</h4>
+              <p className="text-sm text-yellow-700">
+                هذه الأداة تفحص الروابط ضد قاعدة بيانات URLhaus للبرمجيات الخبيثة والتهديدات.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleCheck} className="space-y-4">
+          <div>
+            <Label htmlFor="url-to-check">الرابط المراد فحصه</Label>
+            <Input
+              id="url-to-check"
+              type="url"
+              placeholder="https://example.com"
+              value={urlToCheck}
+              onChange={(e) => setUrlToCheck(e.target.value)}
+              disabled={isChecking}
+              data-testid="input-url-to-check"
+              className="text-left"
+              dir="ltr"
+            />
+          </div>
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isChecking}
+            data-testid="button-check-url"
+          >
+            {isChecking ? "جاري الفحص..." : "فحص الرابط"}
+          </Button>
+        </form>
+
+        {checkResult && (
+          <Card className={
+            checkResult.status === 'malicious' ? 'border-red-200 bg-red-50' :
+            checkResult.status === 'safe' ? 'border-green-200 bg-green-50' :
+            'border-yellow-200 bg-yellow-50'
+          }>
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center">
+                <i className={`text-4xl mb-3 ${
+                  checkResult.status === 'malicious' ? 'fas fa-exclamation-triangle text-red-600' :
+                  checkResult.status === 'safe' ? 'fas fa-check-circle text-green-600' :
+                  'fas fa-question-circle text-yellow-600'
+                }`}></i>
+                <h4 className={`font-bold text-lg mb-2 ${
+                  checkResult.status === 'malicious' ? 'text-red-800' :
+                  checkResult.status === 'safe' ? 'text-green-800' :
+                  'text-yellow-800'
+                }`}>
+                  {checkResult.status === 'malicious' ? '⚠️ رابط خطير!' :
+                   checkResult.status === 'safe' ? '✓ رابط آمن' :
+                   '⚠ حالة غير معروفة'}
+                </h4>
+              </div>
+              
+              <div className="space-y-2">
+                <div className={`rounded-lg p-3 ${
+                  checkResult.status === 'malicious' ? 'bg-red-100' :
+                  checkResult.status === 'safe' ? 'bg-green-100' :
+                  'bg-yellow-100'
+                }`}>
+                  <p className="text-sm break-all" data-testid="text-checked-url">
+                    <strong>الرابط:</strong> {checkResult.url}
+                  </p>
+                  {checkResult.details && (
+                    <p className="text-sm mt-2" data-testid="text-check-details">
+                      <strong>التفاصيل:</strong> {checkResult.details}
+                    </p>
+                  )}
+                  {checkResult.threat && (
+                    <p className="text-sm mt-2 text-red-700" data-testid="text-threat-type">
+                      <strong>نوع التهديد:</strong> {checkResult.threat}
+                    </p>
+                  )}
+                  {checkResult.tags && checkResult.tags.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-semibold">العلامات:</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {checkResult.tags.map((tag: string, index: number) => (
+                          <span key={index} className="inline-block bg-red-200 text-red-800 text-xs px-2 py-1 rounded">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  const ImageCropper = () => {
+    const { toast } = useToast();
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [croppedImage, setCroppedImage] = useState<string | null>(null);
+    const [cropSettings, setCropSettings] = useState({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200
+    });
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "خطأ",
+          description: "يرجى اختيار ملف صورة صحيح",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSelectedImage(file);
+      setCroppedImage(null);
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const handleCrop = () => {
+      if (!imagePreview) return;
+      
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) return;
+        
+        canvas.width = cropSettings.width;
+        canvas.height = cropSettings.height;
+        
+        ctx.drawImage(
+          img,
+          cropSettings.x,
+          cropSettings.y,
+          cropSettings.width,
+          cropSettings.height,
+          0,
+          0,
+          cropSettings.width,
+          cropSettings.height
+        );
+        
+        const croppedDataUrl = canvas.toDataURL('image/png');
+        setCroppedImage(croppedDataUrl);
+        
+        toast({
+          title: "تم القص بنجاح!",
+          description: "يمكنك الآن تحميل الصورة المقصوصة",
+        });
+      };
+      img.src = imagePreview;
+    };
+
+    const downloadCroppedImage = () => {
+      if (!croppedImage) return;
+      
+      const link = document.createElement('a');
+      link.href = croppedImage;
+      link.download = `cropped-${Date.now()}.png`;
+      link.click();
+    };
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="image-crop-upload">اختر صورة للقص</Label>
+          <Input
+            id="image-crop-upload"
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelect}
+            data-testid="input-crop-upload"
+          />
+        </div>
+
+        {imagePreview && (
+          <>
+            <Card>
+              <CardContent className="pt-6">
+                <h4 className="font-semibold text-gray-700 mb-3">الصورة الأصلية</h4>
+                <img 
+                  src={imagePreview} 
+                  alt="Original" 
+                  className="w-full rounded-lg mb-2"
+                  data-testid="img-crop-original"
+                />
+              </CardContent>
+            </Card>
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-700">إعدادات القص</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="crop-x">X (البداية الأفقية)</Label>
+                  <Input
+                    id="crop-x"
+                    type="number"
+                    min="0"
+                    value={cropSettings.x}
+                    onChange={(e) => setCropSettings({...cropSettings, x: parseInt(e.target.value) || 0})}
+                    data-testid="input-crop-x"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="crop-y">Y (البداية العمودية)</Label>
+                  <Input
+                    id="crop-y"
+                    type="number"
+                    min="0"
+                    value={cropSettings.y}
+                    onChange={(e) => setCropSettings({...cropSettings, y: parseInt(e.target.value) || 0})}
+                    data-testid="input-crop-y"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="crop-width">العرض</Label>
+                  <Input
+                    id="crop-width"
+                    type="number"
+                    min="1"
+                    value={cropSettings.width}
+                    onChange={(e) => setCropSettings({...cropSettings, width: parseInt(e.target.value) || 1})}
+                    data-testid="input-crop-width"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="crop-height">الارتفاع</Label>
+                  <Input
+                    id="crop-height"
+                    type="number"
+                    min="1"
+                    value={cropSettings.height}
+                    onChange={(e) => setCropSettings({...cropSettings, height: parseInt(e.target.value) || 1})}
+                    data-testid="input-crop-height"
+                  />
+                </div>
+              </div>
+              
+              <Button onClick={handleCrop} className="w-full" data-testid="button-crop-image">
+                <i className="fas fa-cut ml-2"></i>
+                قص الصورة
+              </Button>
+            </div>
+          </>
+        )}
+
+        {croppedImage && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="pt-6">
+              <h4 className="font-semibold text-green-700 mb-3">الصورة المقصوصة</h4>
+              <img 
+                src={croppedImage} 
+                alt="Cropped" 
+                className="w-full rounded-lg mb-2"
+                data-testid="img-cropped"
+              />
+              <Button onClick={downloadCroppedImage} className="w-full" data-testid="button-download-cropped">
+                <i className="fas fa-download ml-2"></i>
+                تحميل الصورة المقصوصة
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  const ImageCombiner = () => {
+    const { toast } = useToast();
+    const [selectedImages, setSelectedImages] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [combinedImage, setCombinedImage] = useState<string | null>(null);
+    const [combineDirection, setCombineDirection] = useState<'horizontal' | 'vertical'>('horizontal');
+
+    const handleImagesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      
+      if (files.length === 0) return;
+      
+      const imageFiles = files.filter(f => f.type.startsWith('image/'));
+      
+      if (imageFiles.length === 0) {
+        toast({
+          title: "خطأ",
+          description: "يرجى اختيار ملفات صور صحيحة",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSelectedImages(imageFiles);
+      setCombinedImage(null);
+      
+      const previews: string[] = [];
+      imageFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          previews.push(event.target?.result as string);
+          if (previews.length === imageFiles.length) {
+            setImagePreviews(previews);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const handleCombine = async () => {
+      if (imagePreviews.length < 2) {
+        toast({
+          title: "خطأ",
+          description: "يرجى اختيار صورتين على الأقل",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const images = await Promise.all(
+        imagePreviews.map(src => {
+          return new Promise<HTMLImageElement>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.src = src;
+          });
+        })
+      );
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) return;
+      
+      if (combineDirection === 'horizontal') {
+        canvas.width = images.reduce((sum, img) => sum + img.width, 0);
+        canvas.height = Math.max(...images.map(img => img.height));
+        
+        let x = 0;
+        images.forEach(img => {
+          ctx.drawImage(img, x, 0);
+          x += img.width;
+        });
+      } else {
+        canvas.width = Math.max(...images.map(img => img.width));
+        canvas.height = images.reduce((sum, img) => sum + img.height, 0);
+        
+        let y = 0;
+        images.forEach(img => {
+          ctx.drawImage(img, 0, y);
+          y += img.height;
+        });
+      }
+      
+      const combinedDataUrl = canvas.toDataURL('image/png');
+      setCombinedImage(combinedDataUrl);
+      
+      toast({
+        title: "تم الدمج بنجاح!",
+        description: "يمكنك الآن تحميل الصورة المدمجة",
+      });
+    };
+
+    const downloadCombinedImage = () => {
+      if (!combinedImage) return;
+      
+      const link = document.createElement('a');
+      link.href = combinedImage;
+      link.download = `combined-${Date.now()}.png`;
+      link.click();
+    };
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="images-combine-upload">اختر صورتين أو أكثر للدمج</Label>
+          <Input
+            id="images-combine-upload"
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImagesSelect}
+            data-testid="input-combine-upload"
+          />
+        </div>
+
+        {imagePreviews.length > 0 && (
+          <>
+            <div>
+              <Label htmlFor="combine-direction">اتجاه الدمج</Label>
+              <select
+                id="combine-direction"
+                value={combineDirection}
+                onChange={(e) => setCombineDirection(e.target.value as 'horizontal' | 'vertical')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                data-testid="select-combine-direction"
+              >
+                <option value="horizontal">أفقي (جنب إلى جنب)</option>
+                <option value="vertical">عمودي (فوق بعض)</option>
+              </select>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <h4 className="font-semibold text-gray-700 mb-3">الصور المختارة ({imagePreviews.length})</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {imagePreviews.map((preview, index) => (
+                    <img 
+                      key={index}
+                      src={preview} 
+                      alt={`Image ${index + 1}`} 
+                      className="w-full rounded-lg border border-gray-200"
+                      data-testid={`img-combine-preview-${index}`}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button onClick={handleCombine} className="w-full" data-testid="button-combine-images">
+              <i className="fas fa-layer-group ml-2"></i>
+              دمج الصور
+            </Button>
+          </>
+        )}
+
+        {combinedImage && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="pt-6">
+              <h4 className="font-semibold text-green-700 mb-3">الصورة المدمجة</h4>
+              <img 
+                src={combinedImage} 
+                alt="Combined" 
+                className="w-full rounded-lg mb-2"
+                data-testid="img-combined"
+              />
+              <Button onClick={downloadCombinedImage} className="w-full" data-testid="button-download-combined">
+                <i className="fas fa-download ml-2"></i>
+                تحميل الصورة المدمجة
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
   const getToolTitle = () => {
     const titles = {
       "scientific-calculator": "الآلة الحاسبة العلمية",
@@ -3027,12 +3651,15 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "stopwatch": "ساعة الإيقاف",
       "image-converter": "محول الصور",
       "image-resizer": "تغيير حجم الصور",
+      "image-cropper": "قص الصور",
+      "image-combiner": "دمج الصور",
       "bg-remover": "إزالة الخلفية",
       "pdf-merger": "دمج ملفات PDF",
       "pdf-splitter": "تقسيم ملفات PDF",
       "qr-code": "مولد وقارئ رموز QR",
       "pdf-tools": "أدوات PDF",
-      "url-shortener": "مختصر الروابط"
+      "url-shortener": "مختصر الروابط",
+      "link-checker": "فاحص الروابط الخبيثة"
     };
     return titles[toolId as keyof typeof titles] || "أداة حسابية";
   };

@@ -83,12 +83,65 @@ export function calculatePercentage(number: number, total: number) {
   };
 }
 
-export function generateRandomNumber(min: number, max: number) {
-  const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+export function generateRandomNumber(
+  min: number, 
+  max: number, 
+  count: number = 1, 
+  allowDuplicates: boolean = true, 
+  combine: boolean = false
+) {
+  const numbers: number[] = [];
+  const available = new Set<number>();
+  
+  // إنشاء مجموعة الأرقام المتاحة
+  for (let i = min; i <= max; i++) {
+    available.add(i);
+  }
+  
+  // إذا كان عدد الأرقام المطلوبة أكبر من المتاح بدون تكرار
+  if (!allowDuplicates && count > (max - min + 1)) {
+    count = max - min + 1;
+  }
+  
+  // توليد الأرقام
+  for (let i = 0; i < count; i++) {
+    if (!allowDuplicates && available.size === 0) {
+      break;
+    }
+    
+    let randomNum: number;
+    if (allowDuplicates) {
+      randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+    } else {
+      const availableArray = Array.from(available);
+      const randomIndex = Math.floor(Math.random() * availableArray.length);
+      randomNum = availableArray[randomIndex];
+      available.delete(randomNum);
+    }
+    numbers.push(randomNum);
+  }
+  
+  // دمج الأرقام إذا كان مطلوباً
+  if (combine && numbers.length > 1) {
+    const combined = numbers.join('');
+    return {
+      numbers,
+      combined,
+      min,
+      max,
+      count,
+      allowDuplicates,
+      isCombined: true
+    };
+  }
+  
   return {
-    number: randomNum,
+    numbers,
     min,
-    max
+    max,
+    count,
+    allowDuplicates,
+    isCombined: false
   };
 }
 

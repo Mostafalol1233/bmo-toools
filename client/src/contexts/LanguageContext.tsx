@@ -64,6 +64,10 @@ const translations = {
     'image-converter.desc': 'تحويل بين JPG، PNG، WebP',
     'image-resizer.title': 'تغيير حجم الصور',
     'image-resizer.desc': 'تغيير حجم الصور بسهولة',
+    'image-cropper.title': 'قص الصور',
+    'image-cropper.desc': 'قص الصور بأبعاد مخصصة',
+    'image-combiner.title': 'دمج الصور',
+    'image-combiner.desc': 'دمج عدة صور في صورة واحدة',
     'bg-remover.title': 'إزالة الخلفية',
     'bg-remover.desc': 'إزالة خلفية الصور تلقائياً',
     
@@ -75,7 +79,7 @@ const translations = {
     
     // Utilities
     'random-generator.title': 'مولد الأرقام العشوائية',
-    'random-generator.desc': 'توليد أرقام عشوائية بين رقمين',
+    'random-generator.desc': 'توليد أرقام عشوائية مع خيارات متقدمة',
     'password-generator.title': 'مولد كلمات المرور',
     'password-generator.desc': 'إنشاء كلمات مرور قوية وآمنة',
     'text-encoder.title': 'مشفر النصوص',
@@ -84,6 +88,8 @@ const translations = {
     'qr-code.desc': 'إنشاء وقراءة رموز QR بسهولة',
     'url-shortener.title': 'اختصار الروابط',
     'url-shortener.desc': 'اختصار الروابط الطويلة',
+    'link-checker.title': 'فاحص الروابط الخبيثة',
+    'link-checker.desc': 'فحص الروابط ضد قواعد البرمجيات الخبيثة',
     
     // Sections
     'about.title': 'من نحن',
@@ -148,6 +154,10 @@ const translations = {
     'image-converter.desc': 'Convert between JPG, PNG, WebP',
     'image-resizer.title': 'Image Resizer',
     'image-resizer.desc': 'Resize images easily',
+    'image-cropper.title': 'Image Cropper',
+    'image-cropper.desc': 'Crop images with custom dimensions',
+    'image-combiner.title': 'Image Combiner',
+    'image-combiner.desc': 'Combine multiple images into one',
     'bg-remover.title': 'Background Remover',
     'bg-remover.desc': 'Remove image background automatically',
     
@@ -159,7 +169,7 @@ const translations = {
     
     // Utilities
     'random-generator.title': 'Random Number Generator',
-    'random-generator.desc': 'Generate random numbers between two values',
+    'random-generator.desc': 'Generate random numbers with advanced options',
     'password-generator.title': 'Password Generator',
     'password-generator.desc': 'Generate strong and secure passwords',
     'text-encoder.title': 'Text Encoder',
@@ -168,6 +178,8 @@ const translations = {
     'qr-code.desc': 'Create and read QR codes easily',
     'url-shortener.title': 'URL Shortener',
     'url-shortener.desc': 'Shorten long URLs',
+    'link-checker.title': 'Malicious Link Checker',
+    'link-checker.desc': 'Check links against malware databases',
     
     // Sections
     'about.title': 'About Us',

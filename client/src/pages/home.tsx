@@ -169,6 +169,22 @@ const tools: Tool[] = [
     color: "red",
     category: "media"
   },
+  {
+    id: "image-cropper",
+    titleKey: "image-cropper.title",
+    descKey: "image-cropper.desc",
+    icon: "fas fa-crop",
+    color: "purple",
+    category: "media"
+  },
+  {
+    id: "image-combiner",
+    titleKey: "image-combiner.title",
+    descKey: "image-combiner.desc",
+    icon: "fas fa-layer-group",
+    color: "indigo",
+    category: "media"
+  },
   
   // PDF Tools
   {
@@ -227,6 +243,14 @@ const tools: Tool[] = [
     descKey: "url-shortener.desc",
     icon: "fas fa-link",
     color: "indigo",
+    category: "utilities"
+  },
+  {
+    id: "link-checker",
+    titleKey: "link-checker.title",
+    descKey: "link-checker.desc",
+    icon: "fas fa-shield-alt",
+    color: "red",
     category: "utilities"
   }
 ];
