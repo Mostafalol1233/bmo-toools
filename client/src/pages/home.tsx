@@ -252,6 +252,22 @@ const tools: Tool[] = [
     icon: "fas fa-shield-alt",
     color: "red",
     category: "utilities"
+  },
+  {
+    id: "designfy",
+    titleKey: "designfy.title",
+    descKey: "designfy.desc",
+    icon: "fas fa-magic",
+    color: "purple",
+    category: "media"
+  },
+  {
+    id: "ai-image-generator",
+    titleKey: "ai-image-generator.title",
+    descKey: "ai-image-generator.desc",
+    icon: "fas fa-robot",
+    color: "indigo",
+    category: "media"
   }
 ];
 

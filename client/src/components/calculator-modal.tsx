@@ -97,6 +97,12 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [mergedPdfBlob, setMergedPdfBlob] = useState<Blob | null>(null);
   const [splitPdfBlob, setSplitPdfBlob] = useState<Blob | null>(null);
 
+  const [designfyAction, setDesignfyAction] = useState<string>("enhance");
+  const [aiPrompt, setAiPrompt] = useState<string>("");
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+
+  const { toast } = useToast();
+
   const getUnitsForCategory = (category: string) => {
     const unitOptions: { [key: string]: Array<{value: string, label: string}> } = {
       length: [
@@ -2407,6 +2413,57 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         );
 
       case "bg-remover":
+        const removeBackgroundMutation = useMutation({
+          mutationFn: async (imageBase64: string) => {
+            const response = await apiRequest('POST', '/api/background-removal', { imageBase64 });
+            return response.json();
+          },
+          onSuccess: (data) => {
+            if (data.success && data.imageBase64) {
+              setProcessedPreview(data.imageBase64);
+              const base64Data = data.imageBase64.replace(/^data:image\/\w+;base64,/, '');
+              const buffer = atob(base64Data);
+              const bytes = new Uint8Array(buffer.length);
+              for (let i = 0; i < buffer.length; i++) {
+                bytes[i] = buffer.charCodeAt(i);
+              }
+              const blob = new Blob([bytes], { type: 'image/png' });
+              setProcessedImage(blob);
+              setProcessedSize(blob.size);
+              toast({
+                title: "تم بنجاح",
+                description: "تم إزالة الخلفية بنجاح",
+              });
+            } else {
+              toast({
+                title: "خطأ",
+                description: "فشل في إزالة الخلفية",
+                variant: "destructive",
+              });
+            }
+          },
+          onError: (error: any) => {
+            toast({
+              title: "خطأ",
+              description: error.message || "فشل في إزالة الخلفية",
+              variant: "destructive",
+            });
+          },
+        });
+
+        const handleRemoveBackground = async () => {
+          if (!originalPreview) {
+            toast({
+              title: "خطأ",
+              description: "يرجى اختيار صورة أولاً",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          removeBackgroundMutation.mutate(originalPreview);
+        };
+
         return (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -2414,15 +2471,8 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                 <i className="fas fa-info-circle text-blue-600 mt-1"></i>
                 <div>
                   <h4 className="font-semibold text-blue-800 mb-2">حول أداة إزالة الخلفية</h4>
-                  <p className="text-sm text-blue-700 mb-2">
-                    تتطلب هذه الأداة التكامل مع خدمة remove.bg API لإزالة الخلفيات بشكل احترافي.
-                  </p>
                   <p className="text-sm text-blue-700">
-                    لتفعيل هذه الميزة، يرجى الحصول على مفتاح API من 
-                    <a href="https://remove.bg" target="_blank" rel="noopener noreferrer" className="underline mx-1">
-                      remove.bg
-                    </a>
-                    وإضافته إلى إعدادات التطبيق.
+                    قم برفع صورة وسنقوم بإزالة الخلفية تلقائياً باستخدام تقنية الذكاء الاصطناعي.
                   </p>
                 </div>
               </div>
@@ -2450,15 +2500,363 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                       className="w-full rounded-lg mb-2"
                       data-testid="img-bg-original-preview"
                     />
-                    <p className="text-sm text-gray-600" data-testid="text-bg-original-size">
+                    <p className="text-sm text-gray-600 mb-3" data-testid="text-bg-original-size">
                       الحجم: {formatFileSize(originalSize)}
                     </p>
-                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-sm text-yellow-700">
-                        <i className="fas fa-key ml-2"></i>
-                        يتطلب مفتاح API من remove.bg للمتابعة
-                      </p>
+                    <Button 
+                      onClick={handleRemoveBackground} 
+                      className="w-full"
+                      disabled={removeBackgroundMutation.isPending}
+                      data-testid="button-remove-background"
+                    >
+                      {removeBackgroundMutation.isPending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin ml-2"></i>
+                          جاري إزالة الخلفية...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-magic ml-2"></i>
+                          إزالة الخلفية
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {processedPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-green-700 mb-3">الصورة بدون خلفية</h4>
+                    <div className="bg-gray-100 rounded-lg p-4 mb-2">
+                      <img 
+                        src={processedPreview} 
+                        alt="No Background" 
+                        className="w-full rounded-lg"
+                        data-testid="img-bg-removed-preview"
+                      />
                     </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600" data-testid="text-bg-removed-size">
+                        الحجم الجديد: {formatFileSize(processedSize)}
+                      </p>
+                      <Button 
+                        onClick={downloadImage} 
+                        className="w-full"
+                        data-testid="button-download-bg-removed"
+                      >
+                        <i className="fas fa-download ml-2"></i>
+                        تحميل الصورة
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        );
+
+      case "designfy":
+        const designfyMutation = useMutation({
+          mutationFn: async ({ imageUrl, action }: { imageUrl: string; action: string }) => {
+            const response = await apiRequest('POST', '/api/designfy', { 
+              action, 
+              imageUrl,
+              params: {} 
+            });
+            return response.json();
+          },
+          onSuccess: (data) => {
+            if (data.result_url) {
+              setProcessedPreview(data.result_url);
+              toast({
+                title: "تم بنجاح",
+                description: "تمت معالجة الصورة بنجاح",
+              });
+            } else {
+              toast({
+                title: "خطأ",
+                description: "فشل في معالجة الصورة",
+                variant: "destructive",
+              });
+            }
+          },
+          onError: (error: any) => {
+            toast({
+              title: "خطأ",
+              description: error.message || "فشل في معالجة الصورة",
+              variant: "destructive",
+            });
+          },
+        });
+
+        const handleDesignfyProcess = async () => {
+          if (!originalPreview) {
+            toast({
+              title: "خطأ",
+              description: "يرجى اختيار صورة أولاً",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          designfyMutation.mutate({ imageUrl: originalPreview, action: designfyAction });
+        };
+
+        const downloadDesignfyImage = () => {
+          if (!processedPreview) return;
+          
+          const link = document.createElement('a');
+          link.href = processedPreview;
+          link.download = `designfy-${designfyAction}-${Date.now()}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        return (
+          <div className="space-y-4">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start space-x-3 space-x-reverse">
+                <i className="fas fa-wand-magic-sparkles text-purple-600 mt-1"></i>
+                <div>
+                  <h4 className="font-semibold text-purple-800 mb-2">حول أداة Designfy</h4>
+                  <p className="text-sm text-purple-700">
+                    استخدم تقنيات الذكاء الاصطناعي لتحسين الصور، تكبيرها، إعادة تلوينها، أو إزالة الأشياء منها.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="designfy-upload">اختر صورة</Label>
+                <Input
+                  id="designfy-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  data-testid="input-designfy-upload"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="designfy-action">اختر العملية</Label>
+                <Select value={designfyAction} onValueChange={setDesignfyAction}>
+                  <SelectTrigger id="designfy-action" data-testid="select-designfy-action">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="enhance">تحسين الجودة</SelectItem>
+                    <SelectItem value="upscale">تكبير الحجم</SelectItem>
+                    <SelectItem value="recolor">إعادة التلوين</SelectItem>
+                    <SelectItem value="remove-object">إزالة الأشياء</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {originalPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-gray-700 mb-3">الصورة الأصلية</h4>
+                    <img 
+                      src={originalPreview} 
+                      alt="Original" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-designfy-original-preview"
+                    />
+                    <p className="text-sm text-gray-600 mb-3" data-testid="text-designfy-original-size">
+                      الحجم: {formatFileSize(originalSize)}
+                    </p>
+                    <Button 
+                      onClick={handleDesignfyProcess} 
+                      className="w-full"
+                      disabled={designfyMutation.isPending}
+                      data-testid="button-process-designfy"
+                    >
+                      {designfyMutation.isPending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin ml-2"></i>
+                          جاري المعالجة...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-wand-magic-sparkles ml-2"></i>
+                          معالجة بواسطة Designfy
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {processedPreview && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-green-700 mb-3">الصورة المعالجة</h4>
+                    <img 
+                      src={processedPreview} 
+                      alt="Processed" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-designfy-processed-preview"
+                    />
+                    <Button 
+                      onClick={downloadDesignfyImage} 
+                      className="w-full"
+                      data-testid="button-download-designfy"
+                    >
+                      <i className="fas fa-download ml-2"></i>
+                      تحميل الصورة
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        );
+
+      case "ai-image-generator":
+        const generateImageMutation = useMutation({
+          mutationFn: async (prompt: string) => {
+            const response = await apiRequest('POST', '/api/ai-image-generate', { prompt });
+            return response.json();
+          },
+          onSuccess: (data) => {
+            if (data.success && data.imageBase64) {
+              setGeneratedImage(data.imageBase64);
+              toast({
+                title: "تم بنجاح",
+                description: "تم توليد الصورة بنجاح",
+              });
+            } else {
+              toast({
+                title: "خطأ",
+                description: "فشل في توليد الصورة",
+                variant: "destructive",
+              });
+            }
+          },
+          onError: (error: any) => {
+            toast({
+              title: "خطأ",
+              description: error.message || "فشل في توليد الصورة",
+              variant: "destructive",
+            });
+          },
+        });
+
+        const handleGenerateImage = async () => {
+          if (!aiPrompt.trim()) {
+            toast({
+              title: "خطأ",
+              description: "يرجى إدخال وصف للصورة",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          generateImageMutation.mutate(aiPrompt);
+        };
+
+        const downloadGeneratedImage = () => {
+          if (!generatedImage) return;
+          
+          const link = document.createElement('a');
+          link.href = generatedImage;
+          link.download = `ai-generated-${Date.now()}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        const examplePrompts = [
+          "قطة لطيفة ترتدي نظارة شمسية",
+          "منظر طبيعي لجبال عند غروب الشمس",
+          "مدينة مستقبلية مع سيارات طائرة",
+          "باقة ورد ملونة في مزهرية",
+          "شاطئ استوائي مع أشجار النخيل"
+        ];
+
+        return (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start space-x-3 space-x-reverse">
+                <i className="fas fa-sparkles text-blue-600 mt-1"></i>
+                <div>
+                  <h4 className="font-semibold text-blue-800 mb-2">مولد الصور بالذكاء الاصطناعي</h4>
+                  <p className="text-sm text-blue-700">
+                    اكتب وصفاً للصورة التي تريدها وسنقوم بتوليدها باستخدام الذكاء الاصطناعي.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="ai-prompt-input">وصف الصورة</Label>
+                <Input
+                  id="ai-prompt-input"
+                  placeholder="مثال: قطة لطيفة في حديقة..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  data-testid="input-ai-prompt"
+                />
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <h5 className="text-xs font-semibold text-gray-700 mb-2">أمثلة للأوصاف:</h5>
+                <div className="space-y-1">
+                  {examplePrompts.map((example, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setAiPrompt(example)}
+                      className="block text-xs text-blue-600 hover:text-blue-800 hover:underline text-right w-full"
+                      data-testid={`button-example-prompt-${index}`}
+                    >
+                      • {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleGenerateImage} 
+                className="w-full"
+                disabled={generateImageMutation.isPending}
+                data-testid="button-generate-ai-image"
+              >
+                {generateImageMutation.isPending ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin ml-2"></i>
+                    جاري التوليد...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-sparkles ml-2"></i>
+                    توليد الصورة
+                  </>
+                )}
+              </Button>
+
+              {generatedImage && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <h4 className="font-semibold text-green-700 mb-3">الصورة المولدة</h4>
+                    <img 
+                      src={generatedImage} 
+                      alt="AI Generated" 
+                      className="w-full rounded-lg mb-2"
+                      data-testid="img-ai-generated"
+                    />
+                    <Button 
+                      onClick={downloadGeneratedImage} 
+                      className="w-full"
+                      data-testid="button-download-ai-image"
+                    >
+                      <i className="fas fa-download ml-2"></i>
+                      تحميل الصورة
+                    </Button>
                   </CardContent>
                 </Card>
               )}
@@ -3654,6 +4052,8 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       "image-cropper": "قص الصور",
       "image-combiner": "دمج الصور",
       "bg-remover": "إزالة الخلفية",
+      "designfy": "أداة Designfy",
+      "ai-image-generator": "مولد الصور بالذكاء الاصطناعي",
       "pdf-merger": "دمج ملفات PDF",
       "pdf-splitter": "تقسيم ملفات PDF",
       "qr-code": "مولد وقارئ رموز QR",
