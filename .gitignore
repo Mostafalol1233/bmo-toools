@@ -66,3 +66,11 @@ vite.config.ts.*
 
 # Local development
 *.local
+
+# Replit-specific files
+.replit
+replit.nix
+replit.md
+.config/
+.upm/
+.cache/

@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { nanoid } from "nanoid";
 import { insertUrlSchema } from "@shared/schema";
+import FormData from "form-data";
+import axios from "axios";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express, createHttpServer: boolean = true): Promise<Server | null> {
   // URL Shortener Routes
   app.post('/api/urls', async (req, res) => {
     try {
@@ -187,25 +189,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Background removal API key not configured" });
       }
 
-      const formData = new FormData();
-      
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
-      const blob = new Blob([buffer]);
       
-      formData.append('image_file_b64', base64Data);
+      const formData = new FormData();
+      formData.append('image_file', buffer, {
+        filename: 'image.png',
+        contentType: 'image/png'
+      });
       formData.append('size', 'auto');
 
-      const response = await fetch('https://api.remove.bg/v1.0/removebg', {
-        method: 'POST',
+      const response = await axios.post('https://api.remove.bg/v1.0/removebg', formData, {
         headers: {
           'X-Api-Key': apiKey,
+          ...formData.getHeaders(),
         },
-        body: formData,
+        responseType: 'arraybuffer',
+        validateStatus: () => true,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (response.status !== 200) {
+        const errorText = response.data.toString();
         console.error('Background removal API error:', errorText);
         let errorMessage = 'Background removal failed';
         try {
@@ -220,8 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const resultBuffer = await response.arrayBuffer();
-      const base64Result = Buffer.from(resultBuffer).toString('base64');
+      const base64Result = Buffer.from(response.data).toString('base64');
       
       return res.json({ 
         success: true,
@@ -295,11 +298,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid prompt" });
       }
 
-      const pollinations = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+      const enhancedPrompt = `${prompt}, high quality, detailed, 8k, masterpiece`;
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=1024&height=1024&nologo=true&model=flux`;
       
-      const response = await fetch(pollinations);
+      const response = await fetch(imageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
       
       if (!response.ok) {
+        console.error('Image generation failed:', response.status, response.statusText);
         return res.status(response.status).json({ 
           error: 'Failed to generate image' 
         });
@@ -310,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json({ 
         success: true,
-        imageUrl: pollinations,
+        imageUrl: imageUrl,
         imageBase64: `data:image/jpeg;base64,${base64Image}`
       });
     } catch (error) {
@@ -446,7 +455,10 @@ ${tools.map(tool => `  <url>
     res.send(sitemap);
   });
 
-  const httpServer = createServer(app);
+  if (!createHttpServer) {
+    return null;
+  }
 
+  const httpServer = createServer(app);
   return httpServer;
 }

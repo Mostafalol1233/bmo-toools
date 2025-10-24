@@ -37,7 +37,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  const server = await registerRoutes(app, true);
+  
+  if (!server) {
+    throw new Error('Failed to create HTTP server');
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
