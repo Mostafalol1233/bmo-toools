@@ -2559,10 +2559,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
 
       case "designfy":
         const designfyMutation = useMutation({
-          mutationFn: async ({ imageUrl, action }: { imageUrl: string; action: string }) => {
+          mutationFn: async ({ imageBase64, action }: { imageBase64: string; action: string }) => {
             const response = await apiRequest('POST', '/api/designfy', { 
               action, 
-              imageUrl,
+              imageBase64,
               params: {} 
             });
             return response.json();
@@ -2601,7 +2601,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
             return;
           }
           
-          designfyMutation.mutate({ imageUrl: originalPreview, action: designfyAction });
+          designfyMutation.mutate({ imageBase64: originalPreview, action: designfyAction });
         };
 
         const downloadDesignfyImage = () => {

@@ -207,8 +207,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Background removal API error:', errorText);
+        let errorMessage = 'Background removal failed';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.errors?.[0]?.title || errorData.error || errorMessage;
+        } catch {
+          errorMessage = `${errorMessage}: ${response.statusText}`;
+        }
         return res.status(response.status).json({ 
-          error: `Background removal failed: ${response.statusText}` 
+          error: errorMessage,
+          details: errorText
         });
       }
 
@@ -227,10 +235,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/designfy', async (req, res) => {
     try {
-      const { action, imageUrl, params } = req.body;
+      const { action, imageBase64, params } = req.body;
       
       if (!action || typeof action !== 'string') {
         return res.status(400).json({ error: "Invalid action" });
+      }
+
+      if (!imageBase64 || typeof imageBase64 !== 'string') {
+        return res.status(400).json({ error: "Invalid image data" });
       }
 
       const apiKey = process.env.DESIGNFY_API_KEY;
@@ -240,10 +252,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const designfyEndpoint = 'https://api.designfy.com/v1/edit';
       
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      
       const requestBody = {
         api_key: apiKey,
         action,
-        image_url: imageUrl,
+        image_base64: base64Data,
         ...params
       };
 
@@ -258,9 +272,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = await response.json();
       
       if (!response.ok) {
-        console.error('Designfy API error:', data);
+        const errorDetail = JSON.stringify(data);
+        console.error('Designfy API error:', errorDetail);
         return res.status(response.status).json({ 
-          error: data.error || 'Designfy operation failed' 
+          error: data.error || data.message || 'Designfy operation failed',
+          details: errorDetail
         });
       }
 
