@@ -174,6 +174,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/background-removal', async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      
+      if (!imageBase64 || typeof imageBase64 !== 'string') {
+        return res.status(400).json({ error: "Invalid image data" });
+      }
+
+      const apiKey = process.env.BACKGROUND_REMOVAL_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Background removal API key not configured" });
+      }
+
+      const formData = new FormData();
+      
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      const blob = new Blob([buffer]);
+      
+      formData.append('image_file_b64', base64Data);
+      formData.append('size', 'auto');
+
+      const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+        method: 'POST',
+        headers: {
+          'X-Api-Key': apiKey,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Background removal API error:', errorText);
+        return res.status(response.status).json({ 
+          error: `Background removal failed: ${response.statusText}` 
+        });
+      }
+
+      const resultBuffer = await response.arrayBuffer();
+      const base64Result = Buffer.from(resultBuffer).toString('base64');
+      
+      return res.json({ 
+        success: true,
+        imageBase64: `data:image/png;base64,${base64Result}`
+      });
+    } catch (error) {
+      console.error("Error removing background:", error);
+      return res.status(500).json({ error: "Failed to remove background" });
+    }
+  });
+
+  app.post('/api/designfy', async (req, res) => {
+    try {
+      const { action, imageUrl, params } = req.body;
+      
+      if (!action || typeof action !== 'string') {
+        return res.status(400).json({ error: "Invalid action" });
+      }
+
+      const apiKey = process.env.DESIGNFY_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Designfy API key not configured" });
+      }
+
+      const designfyEndpoint = 'https://api.designfy.com/v1/edit';
+      
+      const requestBody = {
+        api_key: apiKey,
+        action,
+        image_url: imageUrl,
+        ...params
+      };
+
+      const response = await fetch(designfyEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Designfy API error:', data);
+        return res.status(response.status).json({ 
+          error: data.error || 'Designfy operation failed' 
+        });
+      }
+
+      return res.json(data);
+    } catch (error) {
+      console.error("Error calling Designfy API:", error);
+      return res.status(500).json({ error: "Failed to process with Designfy" });
+    }
+  });
+
+  app.post('/api/ai-image-generate', async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: "Invalid prompt" });
+      }
+
+      const pollinations = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+      
+      const response = await fetch(pollinations);
+      
+      if (!response.ok) {
+        return res.status(response.status).json({ 
+          error: 'Failed to generate image' 
+        });
+      }
+
+      const imageBuffer = await response.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      
+      return res.json({ 
+        success: true,
+        imageUrl: pollinations,
+        imageBase64: `data:image/jpeg;base64,${base64Image}`
+      });
+    } catch (error) {
+      console.error("Error generating AI image:", error);
+      return res.status(500).json({ error: "Failed to generate AI image" });
+    }
+  });
+
   app.post('/api/urls/check-malicious', async (req, res) => {
     try {
       const { url } = req.body;
