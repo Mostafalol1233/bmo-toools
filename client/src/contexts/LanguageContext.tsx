@@ -11,7 +11,7 @@ interface LanguageContextType {
 const translations = {
   ar: {
     // Header
-    'site.title': 'أدوات الويب المجانية',
+    'site.title': 'BMO Tools',
     'site.description': 'مجموعة شاملة من أدوات التحويل والتحرير والتحليل - مجاناً',
     'tools.select': 'اختر الأداة المناسبة لك',
     'search.placeholder': 'ابحث عن أداة...',
@@ -90,6 +90,10 @@ const translations = {
     'url-shortener.desc': 'اختصار الروابط الطويلة',
     'link-checker.title': 'فاحص الروابط الخبيثة',
     'link-checker.desc': 'فحص الروابط ضد قواعد البرمجيات الخبيثة',
+    'designfy.title': 'أداة Designfy',
+    'designfy.desc': 'تحرير وتحسين الصور باستخدام Designfy API',
+    'ai-image-generator.title': 'مولد الصور بالذكاء الاصطناعي',
+    'ai-image-generator.desc': 'إنشاء صور باستخدام الذكاء الاصطناعي مجاناً',
     
     // Sections
     'about.title': 'من نحن',
@@ -101,7 +105,7 @@ const translations = {
   },
   en: {
     // Header
-    'site.title': 'Free Web Tools',
+    'site.title': 'BMO Tools',
     'site.description': 'A comprehensive collection of conversion, editing, and analysis tools - Free',
     'tools.select': 'Choose the right tool for you',
     'search.placeholder': 'Search for a tool...',
@@ -180,6 +184,10 @@ const translations = {
     'url-shortener.desc': 'Shorten long URLs',
     'link-checker.title': 'Malicious Link Checker',
     'link-checker.desc': 'Check links against malware databases',
+    'designfy.title': 'Designfy Tool',
+    'designfy.desc': 'Edit and enhance images using Designfy API',
+    'ai-image-generator.title': 'AI Image Generator',
+    'ai-image-generator.desc': 'Generate images using AI for free',
     
     // Sections
     'about.title': 'About Us',
