@@ -102,6 +102,51 @@ Currently defined schema includes:
 
 ## Recent Updates
 
+### October 24, 2025 - Advanced Tools & Feature Enhancements
+
+**Random Number Generator Enhancements:**
+- Added count control: Generate multiple random numbers at once (1-100)
+- Duplicate control: Allow/prevent duplicate numbers with toggle
+- Combination feature: Generate formatted number combinations (e.g., lottery numbers)
+- Multi-generation: Create multiple sets of random numbers simultaneously
+- Advanced validation: Smart input validation with clear error messages
+- Complete Arabic/English translations for all new options
+
+**URL Shortener Improvements:**
+- Added TinyURL support via free API endpoint
+- URL expansion feature: Reveal original URLs from shortened links
+- Server-side proxy for TinyURL to avoid CORS issues
+- Service-specific UI notes for Bitly (requires API key)
+- Enhanced error handling and user feedback
+
+**New Security Tool - Malicious Link Checker:**
+- Integration with URLhaus API for free malware/phishing detection
+- Check URLs against abuse.ch database
+- Display threat status with clear indicators
+- Show threat type, tags, and reporter information
+- Complete security scanning without requiring API keys
+- Accessible via utilities category
+
+**New Image Manipulation Tools:**
+- **Image Cropper**: Crop images with custom dimensions
+  - Width and height inputs with validation
+  - Maintain aspect ratio option
+  - Real-time preview (via canvas rendering)
+  - Download cropped result
+- **Image Combiner**: Merge multiple images into one
+  - Support for 2-10 images
+  - Horizontal or vertical layout options
+  - Automatic canvas sizing
+  - Download combined image as PNG
+
+**Technical Improvements:**
+- Canvas-based image processing for crop and combine operations
+- Client-side only processing (no server uploads required)
+- FileReader API for image loading
+- Proper error handling for invalid image formats
+- All new tools include data-testid attributes for testing
+- Enhanced accessibility with ARIA labels
+
 ### October 23, 2025 - BMO Tools Rebranding & Feature Enhancements
 
 **Rebranding:**
@@ -193,6 +238,7 @@ Currently defined schema includes:
 - **Language Context**: Added React Context for dynamic language switching with RTL/LTR support
 
 ## Changelog
+- October 24, 2025: Enhanced random number generator with advanced options, TinyURL integration, malicious link checker, image cropper, image combiner
 - October 23, 2025: BMO Tools rebranding, timer persistence, world clock improvements (11 cities, 12/24 toggle), scientific calculator, multi-service URL shortener, background remover placeholder
 - October 23, 2025: Major web utilities expansion with 10+ new tools, category system, security fixes
 - December 16, 2024: Enhanced countdown timer, added 4 new tools, implemented multilingual support
