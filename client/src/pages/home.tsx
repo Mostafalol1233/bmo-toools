@@ -268,6 +268,78 @@ const tools: Tool[] = [
     icon: "fas fa-robot",
     color: "indigo",
     category: "media"
+  },
+  {
+    id: "loan-calculator",
+    titleKey: "loan-calculator.title",
+    descKey: "loan-calculator.desc",
+    icon: "fas fa-money-check-alt",
+    color: "emerald",
+    category: "calculators"
+  },
+  {
+    id: "aspect-ratio",
+    titleKey: "aspect-ratio.title",
+    descKey: "aspect-ratio.desc",
+    icon: "fas fa-expand",
+    color: "sky",
+    category: "calculators"
+  },
+  {
+    id: "progress-calculator",
+    titleKey: "progress-calculator.title",
+    descKey: "progress-calculator.desc",
+    icon: "fas fa-tasks",
+    color: "violet",
+    category: "calculators"
+  },
+  {
+    id: "storage-converter",
+    titleKey: "storage-converter.title",
+    descKey: "storage-converter.desc",
+    icon: "fas fa-hdd",
+    color: "blue",
+    category: "converters"
+  },
+  {
+    id: "json-yaml",
+    titleKey: "json-yaml.title",
+    descKey: "json-yaml.desc",
+    icon: "fas fa-exchange-alt",
+    color: "amber",
+    category: "utilities"
+  },
+  {
+    id: "text-counter",
+    titleKey: "text-counter.title",
+    descKey: "text-counter.desc",
+    icon: "fas fa-font",
+    color: "teal",
+    category: "utilities"
+  },
+  {
+    id: "json-formatter",
+    titleKey: "json-formatter.title",
+    descKey: "json-formatter.desc",
+    icon: "fas fa-code",
+    color: "slate",
+    category: "utilities"
+  },
+  {
+    id: "spinner-wheel",
+    titleKey: "spinner-wheel.title",
+    descKey: "spinner-wheel.desc",
+    icon: "fas fa-sync-alt",
+    color: "pink",
+    category: "utilities"
+  },
+  {
+    id: "reaction-test",
+    titleKey: "reaction-test.title",
+    descKey: "reaction-test.desc",
+    icon: "fas fa-bolt",
+    color: "orange",
+    category: "utilities"
   }
 ];
 

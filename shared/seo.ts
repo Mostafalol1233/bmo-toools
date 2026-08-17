@@ -236,3 +236,17 @@ export const BLOG_SLUGS = [
   "currency-conversion-tips",
   "free-background-removal-tools",
 ] as const;
+
+
+// أدوات الدفعة الأولى المنفذة داخل المتصفح
+TOOL_SEO.push(
+  { slug: "loan-calculator", title: "حاسبة القروض والقسط الشهري | BMO Tools", description: "احسب القسط الشهري وإجمالي الفائدة وجدول إطفاء الدين مع دعم الدفعات الإضافية.", keywords: "حاسبة القروض, القسط الشهري, جدول إطفاء الدين, BMO Tools", priority: 0.9 },
+  { slug: "aspect-ratio", title: "حاسبة نسبة العرض إلى الارتفاع | BMO Tools", description: "احسب النسبة المبسطة والنسبة العشرية بين عرض الصورة أو الشاشة وارتفاعها.", keywords: "نسبة العرض والارتفاع, aspect ratio, أبعاد الصور, BMO Tools", priority: 0.7 },
+  { slug: "progress-calculator", title: "حاسبة نسبة التقدم والإنجاز | BMO Tools", description: "احسب نسبة إنجاز مشروعك والمهام المتبقية والأيام المتبقية حتى الموعد النهائي.", keywords: "حاسبة التقدم, نسبة الإنجاز, تقدم المشروع, BMO Tools", priority: 0.8 },
+  { slug: "storage-converter", title: "محول وحدات التخزين | BMO Tools", description: "حوّل بين البايت والكيلوبايت والميغابايت والغيغابايت والتيرابايت والبيتابايت.", keywords: "محول وحدات التخزين, تحويل GB MB, بايت, BMO Tools", priority: 0.8 },
+  { slug: "json-yaml", title: "محول JSON إلى YAML والعكس | BMO Tools", description: "حوّل ملفات JSON إلى YAML والعكس مباشرة من المتصفح مع عرض الأخطاء.", keywords: "محول JSON YAML, JSON, YAML, BMO Tools", priority: 0.8 },
+  { slug: "text-counter", title: "عداد الكلمات والحروف والجمل | BMO Tools", description: "احسب الكلمات والحروف والجمل والفقرات والأسطر ووقت القراءة مع تحليل الكلمات المتكررة.", keywords: "عداد الكلمات, عداد الحروف, تحليل النص, BMO Tools", priority: 0.9 },
+  { slug: "json-formatter", title: "منسق ومصغر JSON | BMO Tools", description: "نسّق JSON أو صغّره وتحقق من صحته وانسخ النتيجة بسهولة داخل المتصفح.", keywords: "تنسيق JSON, JSON Formatter, JSON Minify, BMO Tools", priority: 0.9 },
+  { slug: "spinner-wheel", title: "عجلة الحظ والاختيار العشوائي | BMO Tools", description: "أدخل قائمة خيارات ودوّر عجلة الحظ لاختيار فائز عشوائي مع حفظ القائمة واستبعاد الفائز.", keywords: "عجلة الحظ, اختيار عشوائي, spinner wheel, BMO Tools", priority: 0.9 },
+  { slug: "reaction-test", title: "اختبار زمن رد الفعل | BMO Tools", description: "اختبر سرعة رد فعلك بالمللي ثانية وانتظر اللون الأخضر ثم اضغط بأسرع ما يمكنك.", keywords: "اختبار رد الفعل, سرعة الاستجابة, reaction time, BMO Tools", priority: 0.8 },
+);

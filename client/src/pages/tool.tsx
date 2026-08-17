@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import CalculatorModal from "@/components/calculator-modal";
+import BatchToolSuite, { isBatchToolSlug } from "@/components/batch-tool-suite";
 import MetaTags from "@/components/meta-tags";
 import SEOSchema from "@/components/seo-schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -58,7 +59,13 @@ export default function ToolPage() {
           </section>
 
           <section aria-label="الأداة" className="mt-6">
-            <CalculatorModal toolId={tool.slug} onClose={() => navigate("/")} />
+            {isBatchToolSlug(tool.slug) ? (
+              <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-lg md:p-8">
+                <BatchToolSuite slug={tool.slug} />
+              </div>
+            ) : (
+              <CalculatorModal toolId={tool.slug} onClose={() => navigate("/")} />
+            )}
           </section>
 
           <section className="mx-auto mt-8 max-w-4xl rounded-2xl bg-white p-6 shadow-lg md:p-8">
