@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowUpLeft, Filter, Layers3, Search, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { Link } from "wouter";
+import SiteHeader from "@/components/site-header";
 
 interface Tool {
   id: string;
@@ -372,33 +373,7 @@ export default function Home() {
           </div>
         </div>
 
-        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-            <Link href="/" className="group flex items-center gap-3" aria-label="العودة إلى الصفحة الرئيسية">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-cyan-300 shadow-lg shadow-slate-950/15 transition-transform group-hover:-rotate-6">
-                <i className="fas fa-tools text-lg" aria-hidden="true"></i>
-              </span>
-              <span>
-                <span className="block text-lg font-black tracking-tight text-slate-950">{t('site.title')}</span>
-                <span className="block text-[11px] font-semibold text-slate-500">أدوات رقمية أبسط وأسرع</span>
-              </span>
-            </Link>
-            <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex" aria-label="التنقل الرئيسي">
-              <a href="#tools" className="transition-colors hover:text-cyan-700">الأدوات</a>
-              <Link href="/blog" className="transition-colors hover:text-cyan-700">المدونة</Link>
-              <a href="#about" className="transition-colors hover:text-cyan-700">عن الموقع</a>
-            </nav>
-            <Button
-              onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-              variant="outline"
-              className="rounded-xl border-slate-300 bg-white font-bold text-slate-700 shadow-sm hover:border-cyan-400 hover:bg-cyan-50"
-              data-testid="button-language-toggle"
-            >
-              <i className="fas fa-language ml-2" aria-hidden="true"></i>
-              {t('lang.switch')}
-            </Button>
-          </div>
-        </header>
+        <SiteHeader />
 
         <section className="relative overflow-hidden bg-slate-950">
           <div className="absolute -right-24 -top-36 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden="true"></div>

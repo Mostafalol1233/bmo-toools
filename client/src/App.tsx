@@ -10,6 +10,8 @@ import NotFound from "@/pages/not-found";
 
 const ToolPage = lazy(() => import("@/pages/tool"));
 const BlogPage = lazy(() => import("@/pages/blog"));
+const PricingPage = lazy(() => import("@/pages/pricing"));
+const ApiDocsPage = lazy(() => import("@/pages/api-docs"));
 
 function ToolLoading() {
   return (
@@ -29,6 +31,8 @@ function Router() {
         <Route path="/tools/:slug" component={ToolPage} />
         <Route path="/blog" component={BlogPage} />
         <Route path="/blog/:slug" component={BlogPage} />
+        <Route path="/pricing" component={PricingPage} />
+        <Route path="/api-docs" component={ApiDocsPage} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

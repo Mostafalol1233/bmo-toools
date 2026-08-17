@@ -8,6 +8,7 @@ import SEOSchema from "@/components/seo-schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getToolSeo, TOOL_SEO } from "@shared/seo";
 import NotFound from "@/pages/not-found";
+import SiteHeader from "@/components/site-header";
 
 export default function ToolPage() {
   const [, params] = useRoute("/tools/:slug");
@@ -33,6 +34,7 @@ export default function ToolPage() {
       <MetaTags title={title} description={description} keywords={tool.keywords} url={`/tools/${tool.slug}`} type="website" />
       <SEOSchema type="tool" toolName={cleanTitle} toolDescription={description} toolSlug={tool.slug} />
       <main className="min-h-screen bg-[#f6f8fb] pb-16">
+        <SiteHeader />
         <div className="border-b border-slate-200 bg-white/80">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-cyan-700"><HomeIcon size={16} /> الصفحة الرئيسية</Link>
@@ -52,7 +54,7 @@ export default function ToolPage() {
             </div>
           </section>
           <section aria-label="الأداة" className="relative z-10 mx-auto -mt-5 max-w-6xl">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/10 sm:p-8">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/10 sm:p-8 lg:p-10">
               {isBatchToolSlug(tool.slug) ? <BatchToolSuite slug={tool.slug} /> : <CalculatorModal toolId={tool.slug} onClose={() => navigate("/")} />}
             </div>
           </section>

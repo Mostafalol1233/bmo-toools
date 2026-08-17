@@ -1,0 +1,16 @@
+{
+  "name": "@bmo-tools/sdk",
+  "version": "0.1.0",
+  "description": "عميل بسيط للوصول إلى واجهات BMO Tools المجانية",
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "keywords": ["bmo", "tools", "api", "arabic", "utilities"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mostafalol1233/bmo-toools"
+  }
+}

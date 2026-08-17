@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +39,37 @@ interface CalculatorModalProps {
 interface GPACourse {
   grade: number;
   hours: number;
+}
+
+type PuterImageResult = HTMLImageElement | { src?: string } | string;
+type PuterClient = {
+  ai?: {
+    txt2img: (prompt: string, options?: Record<string, string>) => Promise<PuterImageResult>;
+  };
+};
+
+let puterScriptPromise: Promise<void> | null = null;
+
+function loadPuterScript() {
+  if (typeof window === "undefined") return Promise.reject(new Error("التوليد متاح داخل المتصفح فقط"));
+
+  const currentWindow = window as Window & { puter?: PuterClient };
+  if (currentWindow.puter?.ai?.txt2img) return Promise.resolve();
+  if (puterScriptPromise) return puterScriptPromise;
+
+  puterScriptPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://js.puter.com/v2/";
+    script.async = true;
+    script.onload = () => {
+      if ((window as Window & { puter?: PuterClient }).puter?.ai?.txt2img) resolve();
+      else reject(new Error("تعذر تحميل خدمة توليد الصور"));
+    };
+    script.onerror = () => reject(new Error("تعذر الاتصال بخدمة توليد الصور المجانية"));
+    document.head.appendChild(script);
+  });
+
+  return puterScriptPromise;
 }
 
 export default function CalculatorModal({ toolId, onClose }: CalculatorModalProps) {
@@ -104,6 +134,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [designfyAction, setDesignfyAction] = useState<string>("enhance");
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isImageGenerating, setIsImageGenerating] = useState(false);
 
   const { toast } = useToast();
 
@@ -915,8 +946,17 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         expression = expression.replace(/π/g, 'Math.PI');
         expression = expression.replace(/e(?!\d)/g, 'Math.E');
         expression = expression.replace(/Ans/g, `(${scientificAnswer})`);
+        expression = expression.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+        expression = expression.replace(/(\d+(?:\.\d+)?)!/g, 'factorial($1)');
+        expression = expression.replace(/×10\^/g, '*10**');
         expression = expression.replace(/\^/g, '**');
-        const calculated = eval(expression);
+        const factorial = (number: number): number => {
+          if (number < 0 || !Number.isInteger(number)) throw new Error('factorial');
+          let result = 1;
+          for (let i = 2; i <= number; i += 1) result *= i;
+          return result;
+        };
+        const calculated = Function('factorial', `return (${expression})`)(factorial);
         const formatted = Number.isFinite(calculated) ? String(Number(calculated.toPrecision(12))) : 'خطأ';
         setScientificDisplay(formatted);
         if (formatted !== 'خطأ') setScientificAnswer(formatted);
@@ -927,6 +967,14 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     }
     if (value === '⌫') {
       setScientificDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+      return;
+    }
+    if (value === '1/x') {
+      setScientificDisplay(prev => prev === '0' ? '1/(' : `1/(${prev})`);
+      return;
+    }
+    if (value === '(-)') {
+      setScientificDisplay(prev => prev.startsWith('-') ? prev.slice(1) : `-${prev}`);
       return;
     }
     if (value === 'M+') {
@@ -960,19 +1008,20 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
             <div className="mt-3 grid grid-cols-5 gap-2 sm:gap-2.5">
               {[
                 ['SHIFT', 'ALPHA', 'MODE', 'SETUP', 'ON'],
-                ['x⁻¹', 'x²', '√', 'log', 'ln'],
-                ['sin', 'cos', 'tan', '(', ')'],
+                ['x⁻¹', 'x²', '√', '%', '!'],
+                ['sin', 'cos', 'tan', 'log', 'ln'],
+                ['(', ')', '^', '(-)', 'EXP'],
                 ['↑', '↓', '←', '→', 'DEL'],
                 ['7', '8', '9', '÷', 'AC'],
                 ['4', '5', '6', '×', 'Ans'],
-                ['1', '2', '3', '+', '−'],
+                    ['1', '2', '3', '+', '−'],
                 ['0', '.', 'π', '=', 'EXP']
               ].map((row, rowIdx) => row.map((btn, btnIdx) => {
                 const utility = rowIdx === 0;
                 const functionKey = rowIdx > 0 && rowIdx < 4;
                 const danger = btn === 'AC' || btn === 'DEL';
                 const equals = btn === '=';
-                const value = btn === 'AC' ? 'AC' : btn === 'DEL' ? '⌫' : btn === 'sin' ? (scientificShift ? 'sin(' : 'sin(') : btn === 'cos' ? 'cos(' : btn === 'tan' ? 'tan(' : btn === 'log' ? 'log(' : btn === 'ln' ? 'ln(' : btn === '√' ? '√(' : btn === 'x²' ? '^2' : btn === 'Ans' ? 'Ans' : btn === '−' ? '-' : btn === 'EXP' ? 'e' : btn;
+                const value = btn === 'AC' ? 'AC' : btn === 'DEL' ? '⌫' : btn === 'sin' ? 'sin(' : btn === 'cos' ? 'cos(' : btn === 'tan' ? 'tan(' : btn === 'log' ? 'log(' : btn === 'ln' ? 'ln(' : btn === '√' ? '√(' : btn === 'x²' ? '^2' : btn === 'x⁻¹' ? '1/x' : btn === 'Ans' ? 'Ans' : btn === '−' ? '-' : btn === 'EXP' ? '×10^' : btn === '(-)' ? '(-)' : btn;
                 return <Button key={`${rowIdx}-${btnIdx}`} onClick={() => handleScientificButton(value)} variant="outline" className={`h-11 rounded-lg border-0 px-1 font-mono text-sm font-black shadow-[0_3px_0_rgba(0,0,0,0.28)] transition active:translate-y-0.5 active:shadow-none sm:h-12 ${utility ? 'bg-[#d5a84b] text-[#252017] hover:bg-[#e3b85c]' : functionKey ? 'bg-[#d8dde0] text-[#26313a] hover:bg-white' : danger ? 'bg-[#e6a4a5] text-[#4b1e23] hover:bg-[#f0babb]' : equals ? 'bg-[#55a8ad] text-white hover:bg-[#67bcc0]' : 'bg-[#edf0ef] text-[#26313a] hover:bg-white'}`} data-testid={`button-calc-${btn}`}><span>{btn}</span>{functionKey && rowIdx < 2 && <small className="absolute mt-[-2.2rem] text-[8px] font-bold text-[#26313a]/60">{btn === 'x⁻¹' ? 'x!' : btn === 'x²' ? 'x³' : btn === '√' ? '∛' : ''}</small>}</Button>;
               }))}
             </div>
@@ -2733,35 +2782,6 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         );
 
       case "ai-image-generator":
-        const generateImageMutation = useMutation({
-          mutationFn: async (prompt: string) => {
-            const response = await apiRequest('POST', '/api/ai-image-generate', { prompt });
-            return response.json();
-          },
-          onSuccess: (data) => {
-            if (data.success && data.imageBase64) {
-              setGeneratedImage(data.imageBase64);
-              toast({
-                title: "تم بنجاح",
-                description: "تم توليد الصورة بنجاح",
-              });
-            } else {
-              toast({
-                title: "خطأ",
-                description: "فشل في توليد الصورة",
-                variant: "destructive",
-              });
-            }
-          },
-          onError: (error: any) => {
-            toast({
-              title: "خطأ",
-              description: error.message || "فشل في توليد الصورة",
-              variant: "destructive",
-            });
-          },
-        });
-
         const handleGenerateImage = async () => {
           if (!aiPrompt.trim()) {
             toast({
@@ -2771,8 +2791,33 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
             });
             return;
           }
-          
-          generateImageMutation.mutate(aiPrompt);
+
+          setIsImageGenerating(true);
+          try {
+            await loadPuterScript();
+            const currentWindow = window as Window & { puter?: PuterClient };
+            const imageResult = await currentWindow.puter?.ai?.txt2img(aiPrompt.trim());
+            const imageSource = typeof imageResult === "string"
+              ? imageResult
+              : imageResult && "src" in imageResult
+                ? imageResult.src
+                : undefined;
+
+            if (!imageSource) throw new Error("لم تُرجع الخدمة صورة قابلة للعرض");
+            setGeneratedImage(imageSource);
+            toast({
+              title: "تم إنشاء الصورة",
+              description: "تم التوليد داخل المتصفح عبر خدمة مجانية خارجية. قد تطلب الخدمة تسجيل دخول عند أول استخدام.",
+            });
+          } catch (error) {
+            toast({
+              title: "تعذر إنشاء الصورة",
+              description: error instanceof Error ? error.message : "حدث خطأ غير متوقع أثناء التوليد",
+              variant: "destructive",
+            });
+          } finally {
+            setIsImageGenerating(false);
+          }
         };
 
         const downloadGeneratedImage = () => {
@@ -2802,7 +2847,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                 <div>
                   <h4 className="font-semibold text-blue-800 mb-2">مولد الصور بالذكاء الاصطناعي</h4>
                   <p className="text-sm text-blue-700">
-                    اكتب وصفاً للصورة التي تريدها وسنقوم بتوليدها باستخدام الذكاء الاصطناعي.
+                    اكتب وصفاً للصورة. سيتم التوليد داخل المتصفح عبر خدمة مجانية، وقد تطلب الخدمة تسجيل الدخول عند أول استخدام.
                   </p>
                 </div>
               </div>
@@ -2839,10 +2884,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
               <Button 
                 onClick={handleGenerateImage} 
                 className="w-full"
-                disabled={generateImageMutation.isPending}
+                disabled={isImageGenerating}
                 data-testid="button-generate-ai-image"
               >
-                {generateImageMutation.isPending ? (
+                {isImageGenerating ? (
                   <>
                     <i className="fas fa-spinner fa-spin ml-2"></i>
                     جاري التوليد...
@@ -4083,13 +4128,15 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{getToolTitle()}</DialogTitle>
-        </DialogHeader>
-        {renderCalculator()}
-      </DialogContent>
-    </Dialog>
+    <section className="w-full" aria-label={getToolTitle()}>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-700">مساحة الأداة</p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">{getToolTitle()}</h2>
+        </div>
+        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">مجانية · تعمل داخل المتصفح</span>
+      </div>
+      <div className="min-h-[260px]">{renderCalculator()}</div>
+    </section>
   );
 }

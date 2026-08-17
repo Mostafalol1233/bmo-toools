@@ -1,0 +1,19 @@
+{
+  "name": "@bmo-tools/mcp-server",
+  "version": "0.1.0",
+  "description": "خادم MCP لاستدعاء أدوات BMO عبر البروتوكول القياسي",
+  "type": "module",
+  "main": "./index.mjs",
+  "bin": {
+    "bmo-tools-mcp": "./index.mjs"
+  },
+  "dependencies": {
+    "@bmo-tools/sdk": "0.1.0"
+  },
+  "keywords": ["mcp", "bmo", "tools", "automation"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mostafalol1233/bmo-toools"
+  }
+}

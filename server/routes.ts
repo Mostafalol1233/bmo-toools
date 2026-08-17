@@ -8,6 +8,47 @@ import FormData from "form-data";
 import axios from "axios";
 
 export async function registerRoutes(app: Express, createHttpServer: boolean = true): Promise<Server | null> {
+  // Public developer API: free, JSON-only, and easy to call from bots and websites.
+  app.use('/api/v1', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+  });
+
+  app.get('/api/v1/catalog', (_req, res) => {
+    const tools = TOOL_SEO.map((tool) => ({
+      slug: tool.slug,
+      name: tool.title,
+      description: tool.description,
+      url: `${SEO_BASE_URL}/tools/${tool.slug}`,
+      free: true,
+    }));
+    return res.json({ name: 'BMO Tools API', version: '1', free: true, tools });
+  });
+
+  app.post('/api/v1/calculate/percentage', (req, res) => {
+    const value = Number(req.body?.value);
+    const percent = Number(req.body?.percent);
+    if (!Number.isFinite(value) || !Number.isFinite(percent)) {
+      return res.status(400).json({ error: 'أرسل value و percent كأرقام صحيحة.' });
+    }
+    return res.json({ value, percent, result: value * percent / 100 });
+  });
+
+  app.post('/api/v1/calculate/loan', (req, res) => {
+    const principal = Number(req.body?.principal);
+    const annualRate = Number(req.body?.annualRate);
+    const months = Number(req.body?.months);
+    if (!Number.isFinite(principal) || !Number.isFinite(annualRate) || !Number.isFinite(months) || principal <= 0 || months <= 0) {
+      return res.status(400).json({ error: 'أرسل principal و annualRate و months بقيم موجبة.' });
+    }
+    const monthlyRate = annualRate / 100 / 12;
+    const payment = monthlyRate === 0 ? principal / months : principal * monthlyRate * (1 + monthlyRate) ** months / ((1 + monthlyRate) ** months - 1);
+    return res.json({ principal, annualRate, months, monthlyPayment: payment, totalPayment: payment * months, totalInterest: payment * months - principal });
+  });
+
   // URL Shortener Routes
   app.post('/api/urls', async (req, res) => {
     try {
