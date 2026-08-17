@@ -62,6 +62,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   
   const [scientificDisplay, setScientificDisplay] = useState("0");
   const [scientificMemory, setScientificMemory] = useState(0);
+  const [scientificAngleMode, setScientificAngleMode] = useState<"DEG" | "RAD">("DEG");
+  const [scientificShift, setScientificShift] = useState(false);
+  const [scientificAlpha, setScientificAlpha] = useState(false);
+  const [scientificAnswer, setScientificAnswer] = useState("0");
   
   const [stopwatchTime, setStopwatchTime] = useState(0);
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
@@ -879,91 +883,103 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   };
 
   const handleScientificButton = (value: string) => {
-    if (value === 'C') {
+    if (value === 'SHIFT') {
+      setScientificShift(prev => !prev);
+      return;
+    }
+    if (value === 'ALPHA') {
+      setScientificAlpha(prev => !prev);
+      return;
+    }
+    if (value === 'MODE') {
+      setScientificAngleMode(prev => prev === 'DEG' ? 'RAD' : 'DEG');
+      return;
+    }
+    if (value === 'AC' || value === 'C') {
       setScientificDisplay('0');
-    } else if (value === '=') {
+      setScientificShift(false);
+      setScientificAlpha(false);
+      return;
+    }
+    if (value === '=') {
       try {
         let expression = scientificDisplay;
         expression = expression.replace(/×/g, '*').replace(/÷/g, '/');
-        expression = expression.replace(/sin\(/g, 'Math.sin(');
-        expression = expression.replace(/cos\(/g, 'Math.cos(');
-        expression = expression.replace(/tan\(/g, 'Math.tan(');
+        const anglePrefix = scientificAngleMode === 'DEG' ? '(Math.PI/180)*' : '';
+        expression = expression.replace(/sin\(/g, `Math.sin(${anglePrefix}`);
+        expression = expression.replace(/cos\(/g, `Math.cos(${anglePrefix}`);
+        expression = expression.replace(/tan\(/g, `Math.tan(${anglePrefix}`);
         expression = expression.replace(/log\(/g, 'Math.log10(');
         expression = expression.replace(/ln\(/g, 'Math.log(');
         expression = expression.replace(/√\(/g, 'Math.sqrt(');
         expression = expression.replace(/π/g, 'Math.PI');
         expression = expression.replace(/e(?!\d)/g, 'Math.E');
+        expression = expression.replace(/Ans/g, `(${scientificAnswer})`);
         expression = expression.replace(/\^/g, '**');
-        
-        const result = eval(expression);
-        setScientificDisplay(String(result));
-      } catch (e) {
+        const calculated = eval(expression);
+        const formatted = Number.isFinite(calculated) ? String(Number(calculated.toPrecision(12))) : 'خطأ';
+        setScientificDisplay(formatted);
+        if (formatted !== 'خطأ') setScientificAnswer(formatted);
+      } catch {
         setScientificDisplay('خطأ');
       }
-    } else if (value === '⌫') {
-      setScientificDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
-    } else if (value === 'M+') {
-      setScientificMemory(parseFloat(scientificDisplay) || 0);
-    } else if (value === 'MR') {
-      setScientificDisplay(String(scientificMemory));
-    } else if (value === 'MC') {
-      setScientificMemory(0);
-    } else {
-      setScientificDisplay(prev => {
-        if (prev === '0' || prev === 'خطأ') {
-          return value;
-        }
-        return prev + value;
-      });
+      return;
     }
+    if (value === '⌫') {
+      setScientificDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+      return;
+    }
+    if (value === 'M+') {
+      setScientificMemory(prev => prev + (parseFloat(scientificDisplay) || 0));
+      return;
+    }
+    if (value === 'MR') {
+      setScientificDisplay(String(scientificMemory));
+      return;
+    }
+    if (value === 'MC') {
+      setScientificMemory(0);
+      return;
+    }
+    setScientificDisplay(prev => {
+      if (prev === '0' || prev === 'خطأ') return value;
+      return prev + value;
+    });
   };
 
   const renderCalculator = () => {
     switch (toolId) {
       case "scientific-calculator":
         return (
-          <div className="space-y-4">
-            <div className="bg-gray-900 text-white p-4 rounded-lg mb-4">
-              <div className="text-right text-3xl font-mono overflow-x-auto" data-testid="text-scientific-display">
-                {scientificDisplay}
-              </div>
-              {scientificMemory !== 0 && (
-                <div className="text-right text-sm text-gray-400">M: {scientificMemory}</div>
-              )}
+          <div className="mx-auto max-w-xl rounded-[2rem] bg-[#27313a] p-3 shadow-2xl sm:p-5" dir="ltr">
+            <div className="rounded-[1.4rem] border-4 border-[#151b20] bg-[#b9c8b3] p-3 shadow-inner sm:p-4">
+              <div className="flex items-center justify-between text-[10px] font-black tracking-[0.2em] text-[#263128]"><span>{scientificAngleMode}</span><span>{scientificShift ? 'S' : ''}{scientificAlpha ? 'A' : ''}</span><span>{scientificMemory !== 0 ? 'M' : ''}</span></div>
+              <div className="mt-2 min-h-[76px] overflow-x-auto text-right font-mono text-2xl font-bold tracking-tight text-[#172019]" data-testid="text-scientific-display">{scientificDisplay}</div>
+              <div className="flex items-center justify-between border-t border-[#73816f]/50 pt-1 text-[10px] font-bold text-[#536052]"><span>كاسيو افتراضية</span><span>Ans: {scientificAnswer}</span></div>
             </div>
-            
-            <div className="grid grid-cols-5 gap-2">
+            <div className="mt-3 grid grid-cols-5 gap-2 sm:gap-2.5">
               {[
-                ['MC', 'MR', 'M+', 'C', '⌫'],
-                ['sin(', 'cos(', 'tan(', '^', '√('],
-                ['7', '8', '9', '÷', 'log('],
-                ['4', '5', '6', '×', 'ln('],
-                ['1', '2', '3', '-', 'π'],
-                ['0', '.', '=', '+', 'e']
-              ].map((row, rowIdx) => (
-                row.map((btn, btnIdx) => (
-                  <Button
-                    key={`${rowIdx}-${btnIdx}`}
-                    onClick={() => handleScientificButton(btn)}
-                    variant={btn === '=' ? 'default' : btn === 'C' || btn === '⌫' ? 'destructive' : 'outline'}
-                    className={`h-14 text-lg font-semibold ${
-                      ['MC', 'MR', 'M+'].includes(btn) ? 'bg-purple-100 hover:bg-purple-200' :
-                      ['sin(', 'cos(', 'tan(', 'log(', 'ln(', '√(', '^', 'π', 'e'].includes(btn) ? 'bg-blue-100 hover:bg-blue-200' :
-                      ''
-                    }`}
-                    data-testid={`button-calc-${btn}`}
-                  >
-                    {btn}
-                  </Button>
-                ))
-              ))}
+                ['SHIFT', 'ALPHA', 'MODE', 'SETUP', 'ON'],
+                ['x⁻¹', 'x²', '√', 'log', 'ln'],
+                ['sin', 'cos', 'tan', '(', ')'],
+                ['↑', '↓', '←', '→', 'DEL'],
+                ['7', '8', '9', '÷', 'AC'],
+                ['4', '5', '6', '×', 'Ans'],
+                ['1', '2', '3', '+', '−'],
+                ['0', '.', 'π', '=', 'EXP']
+              ].map((row, rowIdx) => row.map((btn, btnIdx) => {
+                const utility = rowIdx === 0;
+                const functionKey = rowIdx > 0 && rowIdx < 4;
+                const danger = btn === 'AC' || btn === 'DEL';
+                const equals = btn === '=';
+                const value = btn === 'AC' ? 'AC' : btn === 'DEL' ? '⌫' : btn === 'sin' ? (scientificShift ? 'sin(' : 'sin(') : btn === 'cos' ? 'cos(' : btn === 'tan' ? 'tan(' : btn === 'log' ? 'log(' : btn === 'ln' ? 'ln(' : btn === '√' ? '√(' : btn === 'x²' ? '^2' : btn === 'Ans' ? 'Ans' : btn === '−' ? '-' : btn === 'EXP' ? 'e' : btn;
+                return <Button key={`${rowIdx}-${btnIdx}`} onClick={() => handleScientificButton(value)} variant="outline" className={`h-11 rounded-lg border-0 px-1 font-mono text-sm font-black shadow-[0_3px_0_rgba(0,0,0,0.28)] transition active:translate-y-0.5 active:shadow-none sm:h-12 ${utility ? 'bg-[#d5a84b] text-[#252017] hover:bg-[#e3b85c]' : functionKey ? 'bg-[#d8dde0] text-[#26313a] hover:bg-white' : danger ? 'bg-[#e6a4a5] text-[#4b1e23] hover:bg-[#f0babb]' : equals ? 'bg-[#55a8ad] text-white hover:bg-[#67bcc0]' : 'bg-[#edf0ef] text-[#26313a] hover:bg-white'}`} data-testid={`button-calc-${btn}`}><span>{btn}</span>{functionKey && rowIdx < 2 && <small className="absolute mt-[-2.2rem] text-[8px] font-bold text-[#26313a]/60">{btn === 'x⁻¹' ? 'x!' : btn === 'x²' ? 'x³' : btn === '√' ? '∛' : ''}</small>}</Button>;
+              }))}
             </div>
-            
-            <div className="text-xs text-gray-600 space-y-1 mt-4">
-              <p>• استخدم الأقواس () للعمليات المعقدة</p>
-              <p>• الزوايا بالراديان (π = {Math.PI.toFixed(4)})</p>
-              <p>• M+: حفظ في الذاكرة | MR: استرجاع | MC: مسح الذاكرة</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {['MC', 'MR', 'M+'].map((btn) => <Button key={btn} onClick={() => handleScientificButton(btn)} variant="outline" className="h-9 rounded-lg border-0 bg-[#9aa6aa] font-mono text-xs font-black text-[#1c2529] shadow-[0_2px_0_rgba(0,0,0,0.25)] hover:bg-[#b4bec1]">{btn}</Button>)}
             </div>
+            <p className="mt-4 text-center text-[11px] font-bold leading-5 text-slate-300">الوضع الحالي: {scientificAngleMode === 'DEG' ? 'درجات' : 'راديان'} · اضغط MODE للتبديل · SHIFT و ALPHA متاحان للتوسعة</p>
           </div>
         );
       
@@ -3048,9 +3064,11 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         );
 
       case "pdf-tools":
+      case "pdf-merger":
+      case "pdf-splitter":
         return (
           <div className="space-y-4">
-            <Tabs defaultValue="merge" className="w-full">
+            <Tabs defaultValue={toolId === "pdf-splitter" ? "split" : "merge"} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="merge" data-testid="tab-pdf-merge">دمج PDF</TabsTrigger>
                 <TabsTrigger value="split" data-testid="tab-pdf-split">تقسيم PDF</TabsTrigger>

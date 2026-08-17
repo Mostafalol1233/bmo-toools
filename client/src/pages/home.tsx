@@ -5,7 +5,7 @@ import MetaTags from "@/components/meta-tags";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
+import { ArrowUpLeft, Filter, Layers3, Search, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { Link } from "wouter";
 
 interface Tool {
@@ -364,112 +364,107 @@ export default function Home() {
     <>
       <MetaTags />
       <SEOSchema type="website" />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-        {/* Advertisement Area Top */}
-        <div className="bg-gradient-to-r from-blue-100 to-purple-100 border-b border-gray-200 py-2">
-          <div className="container mx-auto px-4 text-center">
-            <div className="bg-white rounded-lg p-4 shadow-sm border-2 border-dashed border-gray-300">
-              <i className="fas fa-ad text-gray-400 text-2xl mb-2"></i>
-              <p className="text-gray-500 text-sm">{t('ads.text')}</p>
-            </div>
+      <div className="min-h-screen bg-[#f6f8fb] text-slate-900">
+        <div className="border-b border-slate-200/80 bg-white/70">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs font-semibold text-slate-500 sm:px-6 lg:px-8">
+            <span className="inline-flex items-center gap-2"><ShieldCheck size={14} className="text-emerald-500" /> أدوات تعمل داخل متصفحك وخصوصيتك محفوظة</span>
+            <Link href="/blog" className="hidden text-cyan-700 transition-colors hover:text-cyan-900 sm:inline">نصائح وشروحات الأدوات</Link>
           </div>
         </div>
 
-        {/* Header */}
-        <header className="bg-white shadow-lg sticky top-0 z-40 backdrop-blur-sm bg-white/95">
-          <div className="container mx-auto px-4 py-6">
-            <div className="flex justify-between items-center">
-              <div className="text-center flex-1">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2 animate-slide-up">
-                  <i className="fas fa-tools text-blue-500 ml-3"></i>
-                  {t('site.title')}
-                </h1>
-                <p className="text-slate-600 text-lg">{t('site.description')}</p>
-              </div>
-            
-            {/* Language Toggle */}
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+            <Link href="/" className="group flex items-center gap-3" aria-label="العودة إلى الصفحة الرئيسية">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-cyan-300 shadow-lg shadow-slate-950/15 transition-transform group-hover:-rotate-6">
+                <i className="fas fa-tools text-lg" aria-hidden="true"></i>
+              </span>
+              <span>
+                <span className="block text-lg font-black tracking-tight text-slate-950">{t('site.title')}</span>
+                <span className="block text-[11px] font-semibold text-slate-500">أدوات رقمية أبسط وأسرع</span>
+              </span>
+            </Link>
+            <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex" aria-label="التنقل الرئيسي">
+              <a href="#tools" className="transition-colors hover:text-cyan-700">الأدوات</a>
+              <Link href="/blog" className="transition-colors hover:text-cyan-700">المدونة</Link>
+              <a href="#about" className="transition-colors hover:text-cyan-700">عن الموقع</a>
+            </nav>
             <Button
               onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
               variant="outline"
-              className="flex items-center gap-2"
+              className="rounded-xl border-slate-300 bg-white font-bold text-slate-700 shadow-sm hover:border-cyan-400 hover:bg-cyan-50"
               data-testid="button-language-toggle"
             >
-              <i className="fas fa-language"></i>
+              <i className="fas fa-language ml-2" aria-hidden="true"></i>
               {t('lang.switch')}
             </Button>
           </div>
-          </div>
         </header>
 
-        {/* Search and Filter Section */}
-        <section className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto space-y-4">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <Input
-                type="text"
-                placeholder={t('search.placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-10 py-6 text-lg shadow-lg border-2"
-                data-testid="input-search"
-              />
+        <section className="relative overflow-hidden bg-slate-950">
+          <div className="absolute -right-24 -top-36 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" aria-hidden="true"></div>
+          <div className="absolute -bottom-48 left-1/4 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" aria-hidden="true"></div>
+          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:py-24">
+            <div className="text-white">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-bold text-cyan-200">
+                <Sparkles size={16} /> مساحة عمل رقمية مجانية
+              </div>
+              <h1 className="max-w-3xl text-4xl font-black leading-[1.2] tracking-tight sm:text-6xl">كل الأدوات التي تحتاجها، <span className="text-cyan-300">في مكان واحد.</span></h1>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">{t('site.description')} أنجز حساباتك، حوّل ملفاتك، ونظّم أفكارك بسرعة ومن دون تعقيد أو رفع ملفاتك إلى خادم.</p>
+              <div className="mt-8 flex flex-wrap gap-3 text-sm font-bold text-slate-300">
+                <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">{tools.length} أداة جاهزة</span>
+                <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">خصوصية أولاً</span>
+                <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">دعم عربي كامل</span>
+              </div>
             </div>
-
-            {/* Category Filters */}
-            <div className="flex flex-wrap gap-2 justify-center">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  className={`transition-all ${
-                    selectedCategory === category 
-                      ? 'shadow-lg scale-105' 
-                      : 'hover:shadow-md hover:scale-102'
-                  }`}
-                  data-testid={`button-category-${category}`}
-                >
-                  <Filter className="ml-2" size={16} />
-                  {t(`category.${category}`)}
-                </Button>
-              ))}
+            <div className="rounded-[2rem] border border-white/10 bg-white p-5 shadow-2xl shadow-black/25 sm:p-7">
+              <div className="mb-6 flex items-center justify-between">
+                <div><p className="text-sm font-bold text-cyan-700">ابحث عن أداة</p><p className="mt-1 text-2xl font-black text-slate-950">ماذا تريد أن تنجز اليوم؟</p></div>
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-cyan-300"><Zap size={22} /></span>
+              </div>
+              <div className="relative">
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Input type="text" placeholder={t('search.placeholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-14 w-full rounded-2xl border-slate-200 bg-slate-50 pr-12 text-base shadow-inner focus:border-cyan-400 focus:ring-cyan-400" data-testid="input-search" />
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <Button key={category} onClick={() => setSelectedCategory(category)} variant="outline" className={`rounded-xl border-slate-200 px-3 text-sm font-bold transition-all ${selectedCategory === category ? 'border-slate-950 bg-slate-950 text-white hover:bg-slate-800 hover:text-white' : 'bg-white text-slate-600 hover:border-cyan-400 hover:bg-cyan-50'}`} data-testid={`button-category-${category}`}>
+                    <Filter className="ml-1.5" size={14} />{t(`category.${category}`)}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Main Content */}
-        <main className="container mx-auto px-4 py-8">
-          {/* Tools Grid */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-semibold text-slate-800 mb-6 text-center">
-              {filteredTools.length} {t('tools.select')}
-            </h2>
-          
-            {filteredTools.length === 0 ? (
-              <div className="text-center py-12">
-                <i className="fas fa-search text-gray-300 text-6xl mb-4"></i>
-                <p className="text-gray-500 text-xl">لم يتم العثور على أدوات</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredTools.map((tool) => (
-                  <ToolCard
-                    key={tool.id}
-                    tool={tool}
-                  />
-                ))}
-              </div>
-            )}
+        <main id="tools" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <section className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-black text-cyan-700"><Layers3 size={18} /> مكتبة الأدوات</div>
+              <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">اختر الأداة المناسبة لمهمتك</h2>
+              <p className="mt-3 max-w-2xl text-slate-500">كل أداة مصممة لتنجز مهمة محددة بأقل عدد من الخطوات، مع نتائج فورية داخل المتصفح.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"><p className="text-2xl font-black text-slate-950">{tools.length}</p><p className="text-xs font-bold text-slate-500">إجمالي الأدوات</p></div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm"><p className="text-2xl font-black text-emerald-600">{filteredTools.length}</p><p className="text-xs font-bold text-slate-500">نتيجة البحث</p></div>
+              <div className="col-span-2 rounded-2xl border border-cyan-100 bg-cyan-50 px-5 py-4 shadow-sm sm:col-span-1"><p className="text-2xl font-black text-cyan-700">١٠٠٪</p><p className="text-xs font-bold text-slate-500">داخل المتصفح</p></div>
+            </div>
           </section>
 
-          {/* Advertisement Area Middle */}
-          <div className="mb-12">
-            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-dashed border-gray-300 text-center">
-              <i className="fas fa-ad text-gray-400 text-3xl mb-3"></i>
-              <p className="text-gray-500">منطقة إعلانية وسطى - مساحة 728x90</p>
+          {filteredTools.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white py-20 text-center shadow-sm">
+              <i className="fas fa-search mb-4 text-5xl text-slate-300"></i>
+              <p className="text-xl font-bold text-slate-600">لم يتم العثور على أداة مطابقة</p>
+              <p className="mt-2 text-slate-400">جرّب كلمة بحث أخرى أو اختر تصنيفاً مختلفاً.</p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredTools.map((tool) => <ToolCard key={tool.id} tool={tool} />)}
+            </div>
+          )}
+
+          <div className="mt-12 flex flex-col items-center justify-between gap-5 rounded-3xl bg-cyan-50 px-6 py-7 text-center sm:flex-row sm:text-right">
+            <div><p className="text-lg font-black text-slate-950">هل تبحث عن طريقة استخدام؟</p><p className="mt-1 text-sm font-semibold text-slate-600">اكتشف الشروحات والأفكار العملية في مدونة BMO Tools.</p></div>
+            <Link href="/blog" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-cyan-700">اقرأ المدونة <ArrowUpLeft size={17} /></Link>
           </div>
         </main>
 
