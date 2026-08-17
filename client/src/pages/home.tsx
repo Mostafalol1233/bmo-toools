@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
 import ToolCard from "@/components/tool-card";
-import CalculatorModal from "@/components/calculator-modal";
 import SEOSchema from "@/components/seo-schema";
 import MetaTags from "@/components/meta-tags";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Filter } from "lucide-react";
+import { Link } from "wouter";
 
 interface Tool {
   id: string;
@@ -274,7 +274,6 @@ const tools: Tool[] = [
 const categories = ["all", "time", "calculators", "converters", "media", "pdf", "utilities"];
 
 export default function Home() {
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { t, language, setLanguage } = useLanguage();
@@ -387,7 +386,6 @@ export default function Home() {
                   <ToolCard
                     key={tool.id}
                     tool={tool}
-                    onClick={() => setSelectedTool(tool.id)}
                   />
                 ))}
               </div>
@@ -467,6 +465,7 @@ export default function Home() {
             <div className="mb-4">
               <h3 className="text-xl font-semibold mb-2">أدوات ويب مجانية</h3>
               <p className="text-slate-400">أدوات مجانية ومفيدة للجميع</p>
+              <Link href="/blog" className="mt-3 inline-block text-cyan-300 hover:text-cyan-200 hover:underline">اقرأ مدونة الأدوات والشروحات</Link>
             </div>
             <div className="border-t border-slate-700 pt-4">
               <p className="text-slate-400 text-sm">
@@ -477,13 +476,6 @@ export default function Home() {
           </div>
         </footer>
 
-        {/* Calculator Modal */}
-        {selectedTool && (
-          <CalculatorModal
-            toolId={selectedTool}
-            onClose={() => setSelectedTool(null)}
-          />
-        )}
       </div>
     </>
   );

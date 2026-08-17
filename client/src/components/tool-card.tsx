@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Tool {
@@ -10,7 +11,6 @@ interface Tool {
 
 interface ToolCardProps {
   tool: Tool;
-  onClick: () => void;
 }
 
 const colorClasses = {
@@ -30,21 +30,28 @@ const colorClasses = {
   rose: "bg-rose-100 hover:bg-rose-200 text-rose-600",
 };
 
-export default function ToolCard({ tool, onClick }: ToolCardProps) {
+export default function ToolCard({ tool }: ToolCardProps) {
   const { t } = useLanguage();
-  
+
   return (
-    <div 
-      className="tool-card bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer animate-fade-in"
-      onClick={onClick}
+    <Link
+      href={`/tools/${tool.id}`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-600 focus-visible:ring-offset-2"
+      aria-label={t(tool.titleKey)}
     >
-      <div className="p-6 text-center">
-        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors ${colorClasses[tool.color as keyof typeof colorClasses]}`}>
-          <i className={`${tool.icon} text-2xl`}></i>
+      <article className="tool-card bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-fade-in h-full">
+        <div className="p-6 text-center">
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors ${colorClasses[tool.color as keyof typeof colorClasses]}`}
+          >
+            <i className={`${tool.icon} text-2xl`} aria-hidden="true"></i>
+          </div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">
+            {t(tool.titleKey)}
+          </h3>
+          <p className="text-slate-600 text-sm">{t(tool.descKey)}</p>
         </div>
-        <h3 className="text-lg font-semibold text-slate-800 mb-2">{t(tool.titleKey)}</h3>
-        <p className="text-slate-600 text-sm">{t(tool.descKey)}</p>
-      </div>
-    </div>
+      </article>
+    </Link>
   );
 }

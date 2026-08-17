@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { nanoid } from "nanoid";
 import { insertUrlSchema } from "@shared/schema";
+import { BLOG_SLUGS, SEO_BASE_URL, TOOL_SEO } from "@shared/seo";
 import FormData from "form-data";
 import axios from "axios";
 
@@ -404,33 +405,15 @@ Allow: /tools/
 Allow: /calculator/
 
 # Sitemap location
-Sitemap: ${req.protocol}://${req.get('host')}/sitemap.xml
-
-# Host specification
-Host: ${req.protocol}://${req.get('host')}`;
+Sitemap: ${SEO_BASE_URL}/sitemap.xml`;
 
     res.setHeader('Content-Type', 'text/plain');
     res.send(robotsTxt);
   });
 
   app.get('/api/sitemap', (req, res) => {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = SEO_BASE_URL;
     const currentDate = new Date().toISOString().split('T')[0];
-    
-    const tools = [
-      'age-calculator',
-      'bmi-calculator', 
-      'unit-converter',
-      'password-generator',
-      'bmo-encryption',
-      'cipher-detector',
-      'percentage-calculator',
-      'random-number-generator',
-      'date-difference',
-      'tax-calculator',
-      'square-root',
-      'gpa-calculator'
-    ];
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -443,11 +426,23 @@ Host: ${req.protocol}://${req.get('host')}`;
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-${tools.map(tool => `  <url>
-    <loc>${baseUrl}/tools/${tool}</loc>
+  <url>
+    <loc>${baseUrl}/blog</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+${BLOG_SLUGS.map((slug) => `  <url>
+    <loc>${baseUrl}/blog/${slug}</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
+  </url>`).join('\n')}
+${TOOL_SEO.map(({ slug, priority }) => `  <url>
+    <loc>${baseUrl}/tools/${slug}</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${priority}</priority>
   </url>`).join('\n')}
 </urlset>`;
 
