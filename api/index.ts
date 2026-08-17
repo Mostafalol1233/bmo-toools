@@ -48,7 +48,7 @@ async function handlePublicApi(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const pathname = new URL(req.url || '/', `https://${req.headers.host || 'bmo-toools-three.vercel.app'}`).pathname;
-  if (pathname === '/api/v1/catalog' && req.method === 'GET') {
+  if ((pathname === '/api/v1/catalog' || pathname === '/api/v1/tools') && req.method === 'GET') {
     return res.status(200).json(publicCatalog());
   }
 
