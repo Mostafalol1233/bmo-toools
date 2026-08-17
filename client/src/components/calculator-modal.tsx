@@ -59,17 +59,58 @@ function loadPuterScript() {
 
   puterScriptPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
+    const timeout = window.setTimeout(() => {
+      puterScriptPromise = null;
+      reject(new Error("انتهت مهلة خدمة التوليد"));
+    }, 12000);
     script.src = "https://js.puter.com/v2/";
     script.async = true;
     script.onload = () => {
+      window.clearTimeout(timeout);
       if ((window as Window & { puter?: PuterClient }).puter?.ai?.txt2img) resolve();
-      else reject(new Error("تعذر تحميل خدمة توليد الصور"));
+      else {
+        puterScriptPromise = null;
+        reject(new Error("تعذر تحميل خدمة توليد الصور"));
+      }
     };
-    script.onerror = () => reject(new Error("تعذر الاتصال بخدمة توليد الصور المجانية"));
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      puterScriptPromise = null;
+      reject(new Error("تعذر الاتصال بخدمة توليد الصور المجانية"));
+    };
     document.head.appendChild(script);
   });
 
   return puterScriptPromise;
+}
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error("انتهت مهلة التوليد")), milliseconds);
+    }),
+  ]);
+}
+
+function generateWithFreeFallback(prompt: string) {
+  const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true`;
+  return new Promise<string>((resolve, reject) => {
+    const image = new Image();
+    const timeout = window.setTimeout(() => {
+      image.src = "";
+      reject(new Error("تعذر الحصول على صورة من المسار المجاني الاحتياطي"));
+    }, 45000);
+    image.onload = () => {
+      window.clearTimeout(timeout);
+      resolve(fallbackUrl);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("تعذر الاتصال بمولد الصور المجاني"));
+    };
+    image.src = fallbackUrl;
+  });
 }
 
 export default function CalculatorModal({ toolId, onClose }: CalculatorModalProps) {
@@ -2794,20 +2835,29 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
 
           setIsImageGenerating(true);
           try {
-            await loadPuterScript();
-            const currentWindow = window as Window & { puter?: PuterClient };
-            const imageResult = await currentWindow.puter?.ai?.txt2img(aiPrompt.trim());
-            const imageSource = typeof imageResult === "string"
-              ? imageResult
-              : imageResult && "src" in imageResult
-                ? imageResult.src
-                : undefined;
+            let imageSource: string | undefined;
+            try {
+              await loadPuterScript();
+              const currentWindow = window as Window & { puter?: PuterClient };
+              const imageResult = await withTimeout(
+                currentWindow.puter?.ai?.txt2img(aiPrompt.trim()) ?? Promise.reject(new Error("خدمة Puter غير متاحة")),
+                30000,
+              );
+              imageSource = typeof imageResult === "string"
+                ? imageResult
+                : imageResult && "src" in imageResult
+                  ? imageResult.src
+                  : undefined;
+            } catch (puterError) {
+              console.warn("تعذر استخدام Puter، سيتم استخدام المسار المجاني الاحتياطي", puterError);
+              imageSource = await generateWithFreeFallback(aiPrompt.trim());
+            }
 
-            if (!imageSource) throw new Error("لم تُرجع الخدمة صورة قابلة للعرض");
+            if (!imageSource) throw new Error("لم تُرجع خدمة التوليد صورة قابلة للعرض");
             setGeneratedImage(imageSource);
             toast({
               title: "تم إنشاء الصورة",
-              description: "تم التوليد داخل المتصفح عبر خدمة مجانية خارجية. قد تطلب الخدمة تسجيل دخول عند أول استخدام.",
+              description: "تم التوليد داخل المتصفح باستخدام مسار مجاني، ويمكنك تحميل الصورة مباشرة.",
             });
           } catch (error) {
             toast({
