@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import serverless from 'serverless-http';
-import { registerRoutes } from '../server/routes';
+import { registerRoutes } from '../server/routes.js';
 
 let handler: any = null;
 

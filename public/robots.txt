@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /admin/
 
-Sitemap: https://bmo-tools.vercel.app/sitemap.xml
+Sitemap: https://bmo-toools-three.vercel.app/sitemap.xml

@@ -1,4 +1,4 @@
-export const SEO_BASE_URL = "https://bmo-tools.vercel.app";
+export const SEO_BASE_URL = "https://bmo-toools-three.vercel.app";
 
 export interface ToolSeoDefinition {
   slug: string;

@@ -8,7 +8,7 @@ const priorities = Object.fromEntries(
   [...source.matchAll(/slug:\s*"([^"]+)"[\s\S]*?priority:\s*([0-9.]+)/g)].map((match) => [match[1], match[2]]),
 );
 const today = new Date().toISOString().slice(0, 10);
-const baseUrl = "https://bmo-tools.vercel.app";
+const baseUrl = "https://bmo-toools-three.vercel.app";
 const entries = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
   { path: "/blog", priority: "0.8", changefreq: "weekly" },
