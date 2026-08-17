@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import imageCompression from "browser-image-compression";
@@ -93,6 +94,78 @@ function withTimeout<T>(promise: Promise<T>, milliseconds: number) {
   ]);
 }
 
+async function dataUrlToFile(dataUrl: string, name: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], name, { type: blob.type || "image/png" });
+}
+
+async function processDesignfyLocally(dataUrl: string, action: string, onProgress: (value: number) => void) {
+  if (action === "remove-object") {
+    throw new Error("إزالة العناصر تحتاج خدمة ذكاء اصطناعي خارجية غير مفعلة حالياً؛ لم يتم رفع الصورة إلى أي خادم.");
+  }
+  const image = new Image();
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("تعذر قراءة الصورة محلياً"));
+    image.src = dataUrl;
+  });
+  onProgress(20);
+  const scale = action === "upscale" ? 2 : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("المتصفح لا يدعم معالجة الصورة");
+  if (action === "enhance") context.filter = "contrast(1.08) saturate(1.08) brightness(1.02)";
+  if (action === "recolor") context.filter = "hue-rotate(22deg) saturate(1.25)";
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  onProgress(80);
+  const imageBase64 = canvas.toDataURL("image/png");
+  const blob = await dataUrlToFile(imageBase64, `designfy-${action}`).then((file) => file.slice(0, file.size, "image/png"));
+  onProgress(100);
+  return { imageBase64, blob, size: blob.size };
+}
+
+async function removeBackgroundLocally(dataUrl: string, onProgress: (value: number) => void) {
+  const image = new Image();
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("تعذر قراءة الصورة محلياً"));
+    image.src = dataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("المتصفح لا يدعم معالجة الصورة");
+  context.drawImage(image, 0, 0);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = pixels.data;
+  const samples = [[0, 0], [canvas.width - 1, 0], [0, canvas.height - 1], [canvas.width - 1, canvas.height - 1]];
+  const background = samples.reduce((sum, [x, y]) => {
+    const index = (y * canvas.width + x) * 4;
+    sum[0] += data[index]; sum[1] += data[index + 1]; sum[2] += data[index + 2];
+    return sum;
+  }, [0, 0, 0]).map((value) => value / samples.length);
+  const threshold = 58;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const index = (y * canvas.width + x) * 4;
+      const distance = Math.sqrt(
+        (data[index] - background[0]) ** 2 +
+        (data[index + 1] - background[1]) ** 2 +
+        (data[index + 2] - background[2]) ** 2
+      );
+      if (distance < threshold) data[index + 3] = 0;
+    }
+    if (y % Math.max(1, Math.floor(canvas.height / 20)) === 0) onProgress(20 + Math.round((y / canvas.height) * 70));
+  }
+  context.putImageData(pixels, 0, 0);
+  onProgress(100);
+  return canvas.toDataURL("image/png");
+}
+
 function generateWithFreeFallback(prompt: string) {
   const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true`;
   return new Promise<string>((resolve, reject) => {
@@ -149,6 +222,8 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
   const [originalSize, setOriginalSize] = useState(0);
   const [processedSize, setProcessedSize] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [imageStateHydrated, setImageStateHydrated] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string>("image/jpeg");
   const [targetWidth, setTargetWidth] = useState(800);
   const [targetHeight, setTargetHeight] = useState(600);
@@ -312,6 +387,64 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
       };
     }
   }, [toolId]);
+
+  useEffect(() => {
+    const imageTools = ['image-converter', 'image-resizer', 'bg-remover', 'designfy'];
+    if (!imageTools.includes(toolId)) return;
+    setImageStateHydrated(false);
+    setOriginalImage(null);
+    setProcessedImage(null);
+    setOriginalPreview(null);
+    setProcessedPreview(null);
+    setOriginalSize(0);
+    setProcessedSize(0);
+    setProcessingProgress(0);
+    setIsProcessing(false);
+    let cancelled = false;
+    try {
+      const saved = localStorage.getItem(`bmo_image_state_${toolId}`);
+      if (saved) {
+        const state = JSON.parse(saved) as { originalPreview?: string; processedPreview?: string; originalSize?: number; processedSize?: number; selectedFormat?: string };
+        if (state.originalPreview) {
+          setOriginalPreview(state.originalPreview);
+          setOriginalSize(state.originalSize || 0);
+          void dataUrlToFile(state.originalPreview, 'bmo-original-image').then((file) => {
+            if (!cancelled) setOriginalImage(file);
+          }).catch(() => undefined);
+        }
+        if (state.processedPreview) {
+          setProcessedPreview(state.processedPreview);
+          setProcessedSize(state.processedSize || 0);
+          void dataUrlToFile(state.processedPreview, 'bmo-processed-image').then((file) => {
+            if (!cancelled) setProcessedImage(file);
+          }).catch(() => undefined);
+        }
+        if (state.selectedFormat) setSelectedFormat(state.selectedFormat);
+      }
+    } catch (error) {
+      console.warn('تعذر استعادة حالة الصورة:', error);
+    } finally {
+      setImageStateHydrated(true);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [toolId]);
+
+  useEffect(() => {
+    const imageTools = ['image-converter', 'image-resizer', 'bg-remover', 'designfy'];
+    if (!imageTools.includes(toolId) || !imageStateHydrated) return;
+    const key = `bmo_image_state_${toolId}`;
+    if (!originalPreview && !processedPreview) {
+      localStorage.removeItem(key);
+      return;
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify({ originalPreview, processedPreview, originalSize, processedSize, selectedFormat }));
+    } catch (error) {
+      console.warn('تعذر حفظ حالة الصورة محلياً، ربما تجاوزت الصورة مساحة التخزين المتاحة:', error);
+    }
+  }, [toolId, imageStateHydrated, originalPreview, processedPreview, originalSize, processedSize, selectedFormat]);
 
   const handleAgeCalculation = (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,10 +682,13 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     setOriginalSize(file.size);
     setProcessedImage(null);
     setProcessedPreview(null);
+    setProcessedSize(0);
+    setProcessingProgress(10);
     
     const reader = new FileReader();
     reader.onload = (event) => {
       setOriginalPreview(event.target?.result as string);
+      setProcessingProgress(20);
       
       const img = new Image();
       img.onload = () => {
@@ -571,25 +707,34 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     }
     
     setIsProcessing(true);
+    setProcessingProgress(5);
+    setProcessedImage(null);
+    setProcessedPreview(null);
     
     try {
       const options = {
         maxSizeMB: 10,
         fileType: selectedFormat,
-        useWebWorker: true
+        useWebWorker: true,
+        onProgress: (progress: number) => setProcessingProgress(Math.min(90, Math.max(5, progress))),
       };
       
       const compressedFile = await imageCompression(originalImage, options);
+      setProcessingProgress(92);
       setProcessedImage(compressedFile);
       setProcessedSize(compressedFile.size);
       
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setProcessedPreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(compressedFile);
+      const preview = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("تعذر إنشاء معاينة الصورة"));
+        reader.readAsDataURL(compressedFile);
+      });
+      setProcessedPreview(preview);
+      setProcessingProgress(100);
     } catch (error) {
       console.error("Error converting image:", error);
+      setProcessingProgress(0);
       alert("حدث خطأ أثناء تحويل الصورة");
     } finally {
       setIsProcessing(false);
@@ -608,55 +753,64 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     }
     
     setIsProcessing(true);
+    setProcessingProgress(5);
+    setProcessedImage(null);
+    setProcessedPreview(null);
     
     try {
       const options = {
         maxSizeMB: 10,
         maxWidthOrHeight: Math.max(targetWidth, targetHeight),
-        useWebWorker: true
+        useWebWorker: true,
+        onProgress: (progress: number) => setProcessingProgress(Math.min(45, Math.max(5, Math.round(progress * 0.45)))),
       };
       
       const resizedFile = await imageCompression(originalImage, options);
-      
+      setProcessingProgress(55);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("المتصفح لا يدعم لوحة الرسم");
       const img = new Image();
-      
-      img.onload = () => {
-        if (maintainAspectRatio) {
-          const aspectRatio = img.width / img.height;
-          if (targetWidth / targetHeight > aspectRatio) {
-            canvas.width = targetHeight * aspectRatio;
-            canvas.height = targetHeight;
+      const preview = await new Promise<{ blob: Blob; dataUrl: string }>((resolve, reject) => {
+        img.onload = () => {
+          if (maintainAspectRatio) {
+            const aspectRatio = img.width / img.height;
+            if (targetWidth / targetHeight > aspectRatio) {
+              canvas.width = Math.max(1, Math.round(targetHeight * aspectRatio));
+              canvas.height = Math.max(1, Math.round(targetHeight));
+            } else {
+              canvas.width = Math.max(1, Math.round(targetWidth));
+              canvas.height = Math.max(1, Math.round(targetWidth / aspectRatio));
+            }
           } else {
             canvas.width = targetWidth;
-            canvas.height = targetWidth / aspectRatio;
+            canvas.height = targetHeight;
           }
-        } else {
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-        }
-        
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        canvas.toBlob((blob) => {
-          if (blob) {
-            setProcessedImage(blob);
-            setProcessedSize(blob.size);
-            setProcessedPreview(canvas.toDataURL());
-          }
-          setIsProcessing(false);
-        }, originalImage.type);
-      };
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(resizedFile);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setProcessingProgress(82);
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error("تعذر إنشاء الصورة المعدلة"));
+              return;
+            }
+            resolve({ blob, dataUrl: canvas.toDataURL(originalImage.type || "image/png") });
+          }, originalImage.type || "image/png");
+        };
+        img.onerror = () => reject(new Error("تعذر قراءة الصورة"));
+        const reader = new FileReader();
+        reader.onload = (event) => { img.src = event.target?.result as string; };
+        reader.onerror = () => reject(new Error("تعذر تجهيز الصورة"));
+        reader.readAsDataURL(resizedFile);
+      });
+      setProcessedImage(preview.blob);
+      setProcessedSize(preview.blob.size);
+      setProcessedPreview(preview.dataUrl);
+      setProcessingProgress(100);
     } catch (error) {
       console.error("Error resizing image:", error);
+      setProcessingProgress(0);
       alert("حدث خطأ أثناء تغيير حجم الصورة");
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -675,6 +829,61 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!originalPreview) {
+      toast({ title: "خطأ", description: "يرجى اختيار صورة أولاً", variant: "destructive" });
+      return;
+    }
+    setIsProcessing(true);
+    setProcessingProgress(10);
+    setProcessedImage(null);
+    setProcessedPreview(null);
+    try {
+      const resultPreview = await removeBackgroundLocally(originalPreview, setProcessingProgress);
+      const resultFile = await dataUrlToFile(resultPreview, `bmo-background-removed-${Date.now()}.png`);
+      setProcessedPreview(resultPreview);
+      setProcessedImage(resultFile);
+      setProcessedSize(resultFile.size);
+      toast({ title: "تم بنجاح", description: "تمت إزالة الخلفية محلياً دون رفع الصورة." });
+    } catch (error) {
+      setProcessingProgress(0);
+      toast({
+        title: "تعذر إزالة الخلفية",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء معالجة الصورة",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDesignfyProcess = async () => {
+    if (!originalPreview) {
+      toast({ title: "خطأ", description: "يرجى اختيار صورة أولاً", variant: "destructive" });
+      return;
+    }
+    setIsProcessing(true);
+    setProcessingProgress(10);
+    setProcessedImage(null);
+    setProcessedPreview(null);
+    try {
+      const result = await processDesignfyLocally(originalPreview, designfyAction, setProcessingProgress);
+      setProcessedPreview(result.imageBase64);
+      setProcessedImage(result.blob);
+      setProcessedSize(result.size);
+      toast({ title: "تم بنجاح", description: "تمت المعالجة محلياً داخل المتصفح." });
+    } catch (error) {
+      setProcessingProgress(0);
+      toast({
+        title: "المعالجة غير متاحة",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء معالجة الصورة",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -2369,6 +2578,12 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                   >
                     {isProcessing ? "جاري التحويل..." : "تحويل الصورة"}
                   </Button>
+                  {isProcessing && (
+                    <div className="space-y-2" aria-live="polite">
+                      <Progress value={processingProgress} />
+                      <p className="text-center text-sm text-gray-600">التقدم: {processingProgress}%</p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -2482,6 +2697,12 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                   >
                     {isProcessing ? "جاري تغيير الحجم..." : "تغيير حجم الصورة"}
                   </Button>
+                  {isProcessing && (
+                    <div className="space-y-2" aria-live="polite">
+                      <Progress value={processingProgress} />
+                      <p className="text-center text-sm text-gray-600">التقدم: {processingProgress}%</p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -2519,57 +2740,6 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         );
 
       case "bg-remover":
-        const removeBackgroundMutation = useMutation({
-          mutationFn: async (imageBase64: string) => {
-            const response = await apiRequest('POST', '/api/background-removal', { imageBase64 });
-            return response.json();
-          },
-          onSuccess: (data) => {
-            if (data.success && data.imageBase64) {
-              setProcessedPreview(data.imageBase64);
-              const base64Data = data.imageBase64.replace(/^data:image\/\w+;base64,/, '');
-              const buffer = atob(base64Data);
-              const bytes = new Uint8Array(buffer.length);
-              for (let i = 0; i < buffer.length; i++) {
-                bytes[i] = buffer.charCodeAt(i);
-              }
-              const blob = new Blob([bytes], { type: 'image/png' });
-              setProcessedImage(blob);
-              setProcessedSize(blob.size);
-              toast({
-                title: "تم بنجاح",
-                description: "تم إزالة الخلفية بنجاح",
-              });
-            } else {
-              toast({
-                title: "خطأ",
-                description: "فشل في إزالة الخلفية",
-                variant: "destructive",
-              });
-            }
-          },
-          onError: (error: any) => {
-            toast({
-              title: "خطأ",
-              description: error.message || "فشل في إزالة الخلفية",
-              variant: "destructive",
-            });
-          },
-        });
-
-        const handleRemoveBackground = async () => {
-          if (!originalPreview) {
-            toast({
-              title: "خطأ",
-              description: "يرجى اختيار صورة أولاً",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          removeBackgroundMutation.mutate(originalPreview);
-        };
-
         return (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -2578,7 +2748,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                 <div>
                   <h4 className="font-semibold text-blue-800 mb-2">حول أداة إزالة الخلفية</h4>
                   <p className="text-sm text-blue-700">
-                    قم برفع صورة وسنقوم بإزالة الخلفية تلقائياً باستخدام تقنية الذكاء الاصطناعي.
+                    قم برفع صورة وستتم إزالة الخلفية محلياً داخل المتصفح، من دون رفعها إلى أي خادم.
                   </p>
                 </div>
               </div>
@@ -2612,10 +2782,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                     <Button 
                       onClick={handleRemoveBackground} 
                       className="w-full"
-                      disabled={removeBackgroundMutation.isPending}
+                      disabled={isProcessing}
                       data-testid="button-remove-background"
                     >
-                      {removeBackgroundMutation.isPending ? (
+                      {isProcessing ? (
                         <>
                           <i className="fas fa-spinner fa-spin ml-2"></i>
                           جاري إزالة الخلفية...
@@ -2627,6 +2797,12 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                         </>
                       )}
                     </Button>
+                    {isProcessing && (
+                      <div className="space-y-2 mt-3" aria-live="polite">
+                        <Progress value={processingProgress} />
+                        <p className="text-center text-sm text-gray-600">جاري التنفيذ محلياً: {processingProgress}%</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -2664,52 +2840,6 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
         );
 
       case "designfy":
-        const designfyMutation = useMutation({
-          mutationFn: async ({ imageBase64, action }: { imageBase64: string; action: string }) => {
-            const response = await apiRequest('POST', '/api/designfy', { 
-              action, 
-              imageBase64,
-              params: {} 
-            });
-            return response.json();
-          },
-          onSuccess: (data) => {
-            if (data.result_url) {
-              setProcessedPreview(data.result_url);
-              toast({
-                title: "تم بنجاح",
-                description: "تمت معالجة الصورة بنجاح",
-              });
-            } else {
-              toast({
-                title: "خطأ",
-                description: "فشل في معالجة الصورة",
-                variant: "destructive",
-              });
-            }
-          },
-          onError: (error: any) => {
-            toast({
-              title: "خطأ",
-              description: error.message || "فشل في معالجة الصورة",
-              variant: "destructive",
-            });
-          },
-        });
-
-        const handleDesignfyProcess = async () => {
-          if (!originalPreview) {
-            toast({
-              title: "خطأ",
-              description: "يرجى اختيار صورة أولاً",
-              variant: "destructive",
-            });
-            return;
-          }
-          
-          designfyMutation.mutate({ imageBase64: originalPreview, action: designfyAction });
-        };
-
         const downloadDesignfyImage = () => {
           if (!processedPreview) return;
           
@@ -2729,7 +2859,7 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                 <div>
                   <h4 className="font-semibold text-purple-800 mb-2">حول أداة Designfy</h4>
                   <p className="text-sm text-purple-700">
-                    استخدم تقنيات الذكاء الاصطناعي لتحسين الصور، تكبيرها، إعادة تلوينها، أو إزالة الأشياء منها.
+                    نفّذ تحسينات محلية آمنة داخل المتصفح مثل تحسين الألوان والتكبير. إزالة العناصر تحتاج خدمة خارجية غير مفعلة حفاظاً على الخصوصية.
                   </p>
                 </div>
               </div>
@@ -2778,10 +2908,10 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                     <Button 
                       onClick={handleDesignfyProcess} 
                       className="w-full"
-                      disabled={designfyMutation.isPending}
+                      disabled={isProcessing}
                       data-testid="button-process-designfy"
                     >
-                      {designfyMutation.isPending ? (
+                      {isProcessing ? (
                         <>
                           <i className="fas fa-spinner fa-spin ml-2"></i>
                           جاري المعالجة...
@@ -2793,6 +2923,12 @@ export default function CalculatorModal({ toolId, onClose }: CalculatorModalProp
                         </>
                       )}
                     </Button>
+                    {isProcessing && (
+                      <div className="space-y-2 mt-3" aria-live="polite">
+                        <Progress value={processingProgress} />
+                        <p className="text-center text-sm text-gray-600">جاري التنفيذ محلياً: {processingProgress}%</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
