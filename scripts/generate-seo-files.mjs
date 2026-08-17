@@ -32,7 +32,7 @@ Disallow: /admin/
 
 Sitemap: ${baseUrl}/sitemap.xml
 `;
-await mkdir(new URL("../public/", import.meta.url), { recursive: true });
-await writeFile(new URL("../public/sitemap.xml", import.meta.url), sitemap);
-await writeFile(new URL("../public/robots.txt", import.meta.url), robots);
+await mkdir(new URL("../client/public/", import.meta.url), { recursive: true });
+await writeFile(new URL("../client/public/sitemap.xml", import.meta.url), sitemap);
+await writeFile(new URL("../client/public/robots.txt", import.meta.url), robots);
 console.log(`Generated SEO files for ${entries.length} URLs.`);
